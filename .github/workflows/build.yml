@@ -5,28 +5,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Unzip and Auto-Fix Code
+
+      - name: Prepare and Fix Files
         run: |
           unzip -o UsbFixer_Android_App_Project.zip
-          python3 -c '
-          p = "app/src/main/java/com/example/usbfixer/MainActivity.kt"
-          s = open(p).read()
-          s = s.replace("✅ $fixLog\nاضغط", "✅ $fixLog\\nاضغط")
-          s = s.replace("في:\nDownloads", "في:\\nDownloads")
-          open(p, "w").write(s)
-          '
+          perl -0777 -pi -e 's/\nاضغط/\\nاضغط/g' app/src/main/java/com/example/usbfixer/MainActivity.kt
+          perl -0777 -pi -e 's/\nDownloads/\\nDownloads/g' app/src/main/java/com/example/usbfixer/MainActivity.kt
+
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-      - uses: android-actions/setup-android@v3
+
       - uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.4'
+
       - name: Build Debug APK
-        run: gradle assembleDebug
+        run: gradle assembleDebug --no-daemon
+
       - uses: actions/upload-artifact@v4
         with:
           name: UsbFixer-APK
           path: app/build/outputs/apk/debug/app-debug.apk
-          
