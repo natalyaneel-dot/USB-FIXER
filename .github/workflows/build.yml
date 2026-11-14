@@ -6,12 +6,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare and Fix Files
-        run: |
-          unzip -o UsbFixer_Android_App_Project.zip
-          perl -0777 -pi -e 's/\nاضغط/\\nاضغط/g' app/src/main/java/com/example/usbfixer/MainActivity.kt
-          perl -0777 -pi -e 's/\nDownloads/\\nDownloads/g' app/src/main/java/com/example/usbfixer/MainActivity.kt
-
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -21,8 +15,500 @@ jobs:
         with:
           gradle-version: '8.4'
 
-      - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon
+      - name: Generate Pure Android USB Fixer and Build APK
+        run: |
+          rm -rf app build.gradle* settings.gradle* gradle.properties
+          mkdir -p app/src/main/java/com/example/usbfixer app/src/main/res/xml
+
+          cat << 'EOF' > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "UsbFixer"
+          include ':app'
+          EOF
+
+          cat << 'EOF' > build.gradle
+          plugins {
+              id 'com.android.application' version '8.1.4' apply false
+          }
+          EOF
+
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          EOF
+
+          cat << 'EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.example.usbfixer'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.example.usbfixer"
+                  minSdk 21
+                  targetSdk 33
+                  versionCode 1
+                  versionName "1.0"
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_1_8
+                  targetCompatibility JavaVersion.VERSION_1_8
+              }
+          }
+          dependencies {
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/res/xml/device_filter.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <usb-device class="8" subclass="6" protocol="80" />
+          </resources>
+          EOF
+
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-feature android:name="android.hardware.usb.host" android:required="true" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+              <application
+                  android:label="مصلح الفلاشة USB Fixer"
+                  android:supportsRtl="true"
+                  android:theme="@android:style/Theme.DeviceDefault.Light.DarkActionBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                      <intent-filter>
+                          <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                          android:resource="@xml/device_filter" />
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/example/usbfixer/MainActivity.java
+          package com.example.usbfixer;
+
+          import android.Manifest;
+          import android.app.*;
+          import android.content.*;
+          import android.content.pm.PackageManager;
+          import android.graphics.Color;
+          import android.hardware.usb.*;
+          import android.os.*;
+          import android.view.*;
+          import android.widget.*;
+          import java.io.*;
+          import java.nio.*;
+          import java.nio.charset.StandardCharsets;
+          import java.util.*;
+
+          public class MainActivity extends Activity {
+              private static final String ACTION_USB = "com.example.usbfixer.USB_PERMISSION";
+              private TextView statusText;
+              private LinearLayout filesBox;
+              private ProgressBar bar;
+              private UsbManager usbMgr;
+              private UsbDevice curDev;
+              private UsbDeviceConnection conn;
+              private UsbInterface usbIf;
+              private UsbEndpoint epIn, epOut;
+              private int tag = 1, fsType = 0, spc = 8;
+              private long partLba = 0, fatLba = 0, dataLba = 0, rootClus = 2;
+              private final List<Long> dirStack = new ArrayList<>();
+
+              static class Entry {
+                  String name; boolean isDir, noChain; long clus, size;
+              }
+
+              private final BroadcastReceiver receiver = new BroadcastReceiver() {
+                  @Override public void onReceive(Context c, Intent i) {
+                      if (ACTION_USB.equals(i.getAction())) {
+                          if (i.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false) && curDev != null)
+                              fixAndRead(curDev);
+                          else statusText.setText("تم رفض صلاحية الوصول للفلاشة.");
+                      }
+                  }
+              };
+
+              @Override protected void onCreate(Bundle b) {
+                  super.onCreate(b);
+                  usbMgr = (UsbManager) getSystemService(Context.USB_SERVICE);
+                  if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT <= 29) {
+                      if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                          requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 101);
+                      }
+                  }
+
+                  LinearLayout root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setPadding(32, 32, 32, 32);
+                  root.setBackgroundColor(Color.parseColor("#F8FAFC"));
+
+                  TextView title = new TextView(this);
+                  title.setText("مصلح الفلاشة وقارئ الملفات بدون فورمات");
+                  title.setTextSize(18f);
+                  title.setTextColor(Color.parseColor("#0F172A"));
+                  title.setGravity(Gravity.CENTER);
+                  title.setPadding(0, 0, 0, 20);
+
+                  LinearLayout row = new LinearLayout(this);
+                  row.setGravity(Gravity.CENTER);
+                  Button scanBtn = new Button(this);
+                  scanBtn.setText("إصلاح الإقلاع وفتح الفلاشة");
+                  scanBtn.setBackgroundColor(Color.parseColor("#2563EB"));
+                  scanBtn.setTextColor(Color.WHITE);
+
+                  Button upBtn = new Button(this);
+                  upBtn.setText("رجوع");
+                  upBtn.setOnClickListener(v -> {
+                      if (dirStack.size() > 1) {
+                          dirStack.remove(dirStack.size() - 1);
+                          loadDir(dirStack.get(dirStack.size() - 1));
+                      }
+                  });
+                  row.addView(scanBtn); row.addView(upBtn);
+
+                  bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+                  bar.setIndeterminate(true);
+                  bar.setVisibility(View.GONE);
+
+                  statusText = new TextView(this);
+                  statusText.setText("قم بتوصيل الفلاشة عبر OTG ثم اضغط على زر الإصلاح.");
+                  statusText.setTextSize(15f);
+                  statusText.setPadding(12, 20, 12, 20);
+
+                  ScrollView sv = new ScrollView(this);
+                  filesBox = new LinearLayout(this);
+                  filesBox.setOrientation(LinearLayout.VERTICAL);
+                  sv.addView(filesBox);
+
+                  root.addView(title); root.addView(row); root.addView(bar); root.addView(statusText); root.addView(sv);
+                  setContentView(root);
+
+                  IntentFilter f = new IntentFilter(ACTION_USB);
+                  if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, f, Context.RECEIVER_EXPORTED);
+                  else registerReceiver(receiver, f);
+
+                  scanBtn.setOnClickListener(v -> connectUsb());
+              }
+
+              private void connectUsb() {
+                  HashMap<String, UsbDevice> map = usbMgr.getDeviceList();
+                  if (map == null || map.isEmpty()) {
+                      statusText.setText("لم يتم العثور على فلاشة متصلة! تأكد من وصلة OTG.");
+                      return;
+                  }
+                  curDev = map.values().iterator().next();
+                  if (!usbMgr.hasPermission(curDev)) {
+                      Intent in = new Intent(ACTION_USB).setPackage(getPackageName());
+                      int fl = Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0;
+                      usbMgr.requestPermission(curDev, PendingIntent.getBroadcast(this, 0, in, fl));
+                  } else fixAndRead(curDev);
+              }
+
+              private void fixAndRead(UsbDevice dev) {
+                  bar.setVisibility(View.VISIBLE);
+                  statusText.setText("جاري فحص وإصلاح قطاع الإقلاع...");
+                  filesBox.removeAllViews();
+                  new Thread(() -> {
+                      try {
+                          if (!openMassStorage(dev)) throw new Exception("تعذر فتح قناة USB مع الفلاشة.");
+                          String msg = repairBoot();
+                          if (fsType == 0) {
+                              runOnUiThread(() -> { bar.setVisibility(View.GONE); statusText.setText(msg); });
+                              return;
+                          }
+                          dirStack.clear(); dirStack.add(rootClus);
+                          List<Entry> list = readDir(rootClus, false);
+                          runOnUiThread(() -> {
+                              bar.setVisibility(View.GONE);
+                              statusText.setText(msg + "\nاضغط على أي مجلد لفتحه، أو على أي ملف لحفظه في الهاتف:");
+                              render(list);
+                          });
+                      } catch (Exception e) {
+                          runOnUiThread(() -> { bar.setVisibility(View.GONE); statusText.setText("خطأ: " + e.getMessage()); });
+                      }
+                  }).start();
+              }
+
+              private void loadDir(long clus) {
+                  bar.setVisibility(View.VISIBLE);
+                  new Thread(() -> {
+                      try {
+                          List<Entry> list = readDir(clus, false);
+                          runOnUiThread(() -> { bar.setVisibility(View.GONE); render(list); });
+                      } catch (Exception e) {
+                          runOnUiThread(() -> bar.setVisibility(View.GONE));
+                      }
+                  }).start();
+              }
+
+              private void render(List<Entry> list) {
+                  filesBox.removeAllViews();
+                  if (list.isEmpty()) {
+                      TextView tv = new TextView(this); tv.setText("(المجلد فارغ)"); filesBox.addView(tv); return;
+                  }
+                  for (Entry e : list) {
+                      Button b = new Button(this);
+                      b.setText((e.isDir ? "[مجلد] " : "[حفظ ملف] ") + e.name + (e.isDir ? "" : " (" + (e.size / 1024) + " KB)"));
+                      b.setAllCaps(false);
+                      b.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+                      b.setOnClickListener(v -> {
+                          if (e.isDir) { dirStack.add(e.clus); loadDir(e.clus); }
+                          else saveFile(e);
+                      });
+                      filesBox.addView(b);
+                  }
+              }
+
+              private void saveFile(Entry e) {
+                  bar.setVisibility(View.VISIBLE);
+                  statusText.setText("جاري نسخ الملف: " + e.name);
+                  new Thread(() -> {
+                      try {
+                          File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "USB_Recovered_Files");
+                          if (!dir.exists() && !dir.mkdirs()) {
+                              dir = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "USB_Recovered_Files");
+                              dir.mkdirs();
+                          }
+                          File out = new File(dir, e.name);
+                          try (FileOutputStream fos = new FileOutputStream(out)) {
+                              long rem = e.size, c = e.clus;
+                              while (rem > 0 && c >= 2 && c < 0x0FFFFFF7L) {
+                                  byte[] d = readSec(dataLba + (c - 2) * spc, spc);
+                                  int w = (int) Math.min(rem, d.length);
+                                  fos.write(d, 0, w);
+                                  rem -= w;
+                                  if (rem > 0) c = e.noChain ? c + 1 : nextClus(c);
+                              }
+                          }
+                          final String savedPath = out.getAbsolutePath();
+                          runOnUiThread(() -> {
+                              bar.setVisibility(View.GONE);
+                              statusText.setText("تم الحفظ بنجاح في:\n" + savedPath);
+                              Toast.makeText(this, "تم الحفظ بنجاح!", Toast.LENGTH_LONG).show();
+                          });
+                      } catch (Exception ex) {
+                          runOnUiThread(() -> { bar.setVisibility(View.GONE); statusText.setText("فشل النسخ: " + ex.getMessage()); });
+                      }
+                  }).start();
+              }
+
+              private boolean openMassStorage(UsbDevice dev) {
+                  for (int i = 0; i < dev.getInterfaceCount(); i++) {
+                      UsbInterface intf = dev.getInterface(i);
+                      if (intf.getInterfaceClass() == UsbConstants.USB_CLASS_MASS_STORAGE) {
+                          UsbEndpoint in = null, out = null;
+                          for (int j = 0; j < intf.getEndpointCount(); j++) {
+                              UsbEndpoint ep = intf.getEndpoint(j);
+                              if (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
+                                  if (ep.getDirection() == UsbConstants.USB_DIR_IN) in = ep; else out = ep;
+                              }
+                          }
+                          if (in != null && out != null) {
+                              UsbDeviceConnection c = usbMgr.openDevice(dev);
+                              if (c != null && c.claimInterface(intf, true)) {
+                                  conn = c; usbIf = intf; epIn = in; epOut = out; return true;
+                              }
+                          }
+                      }
+                  }
+                  return false;
+              }
+
+              private synchronized byte[] readSec(long lba, int cnt) throws Exception {
+                  int len = cnt * 512;
+                  ByteBuffer cbw = ByteBuffer.allocate(31).order(ByteOrder.LITTLE_ENDIAN);
+                  cbw.putInt(0x43425355).putInt(tag++).putInt(len).put((byte) 0x80).put((byte) 0).put((byte) 10);
+                  cbw.put((byte) 0x28).put((byte) 0).putInt(Integer.reverseBytes((int) lba));
+                  cbw.put((byte) 0).putShort(Short.reverseBytes((short) cnt)).put((byte) 0);
+                  if (conn.bulkTransfer(epOut, cbw.array(), 31, 5000) < 0) throw new Exception("SCSI Read Error");
+                  byte[] data = new byte[len];
+                  int off = 0;
+                  while (off < len) {
+                      int ch = Math.min(16384, len - off);
+                      byte[] tmp = new byte[ch];
+                      int r = conn.bulkTransfer(epIn, tmp, ch, 5000);
+                      if (r < 0) break;
+                      System.arraycopy(tmp, 0, data, off, r);
+                      off += r;
+                      if (r < ch) break;
+                  }
+                  conn.bulkTransfer(epIn, new byte[13], 13, 5000);
+                  return data;
+              }
+
+              private synchronized void writeSec(long lba, byte[] sec) throws Exception {
+                  ByteBuffer cbw = ByteBuffer.allocate(31).order(ByteOrder.LITTLE_ENDIAN);
+                  cbw.putInt(0x43425355).putInt(tag++).putInt(512).put((byte) 0).put((byte) 0).put((byte) 10);
+                  cbw.put((byte) 0x2A).put((byte) 0).putInt(Integer.reverseBytes((int) lba)).put((byte) 0).putShort(Short.reverseBytes((short) 1)).put((byte) 0);
+                  conn.bulkTransfer(epOut, cbw.array(), 31, 5000);
+                  conn.bulkTransfer(epOut, sec, 512, 5000);
+                  conn.bulkTransfer(epIn, new byte[13], 13, 5000);
+              }
+
+              private String repairBoot() throws Exception {
+                  fsType = 0;
+                  byte[] s0 = readSec(0, 1);
+                  boolean ex0 = new String(s0, 3, 5, StandardCharsets.US_ASCII).equals("EXFAT");
+                  boolean fat0 = new String(s0, 82, 5, StandardCharsets.US_ASCII).startsWith("FAT32");
+                  partLba = (!ex0 && !fat0 && (s0[510] & 0xFF) == 0x55 && (s0[511] & 0xFF) == 0xAA) ? u32(s0, 454) : 0;
+                  byte[] vbr = partLba > 0 ? readSec(partLba, 1) : s0;
+                  StringBuilder sb = new StringBuilder();
+
+                  if ((vbr[510] & 0xFF) != 0x55 || (vbr[511] & 0xFF) != 0xAA) {
+                      byte[] bk = readSec(partLba + 6, 1);
+                      if ((bk[510] & 0xFF) == 0x55 && (bk[511] & 0xFF) == 0xAA) {
+                          vbr = bk; writeSec(partLba, vbr);
+                          sb.append("تم استعادة قطاع الإقلاع من النسخة الاحتياطية! ");
+                      }
+                  }
+                  String oem = new String(vbr, 3, 8, StandardCharsets.US_ASCII);
+                  if (oem.startsWith("EXFAT")) {
+                      fsType = 2;
+                      if ((vbr[0x6A] & 0x02) != 0) {
+                          vbr[0x6A] = (byte) (vbr[0x6A] & 0xFD); writeSec(partLba, vbr);
+                          sb.append("تم إصلاح إقلاع exFAT بنجاح!");
+                      } else sb.append("تم فتح نظام exFAT بنجاح!");
+                      int scale = (1 << (vbr[0x6C] & 0xFF)) / 512;
+                      spc = (1 << (vbr[0x6D] & 0xFF)) * scale;
+                      fatLba = partLba + u32(vbr, 0x50) * scale;
+                      dataLba = partLba + u32(vbr, 0x58) * scale;
+                      rootClus = u32(vbr, 0x60);
+                      return sb.toString();
+                  }
+                  int bps = u16(vbr, 0x0B), spc0 = vbr[0x0D] & 0xFF, res = u16(vbr, 0x0E), fats = vbr[0x10] & 0xFF;
+                  long spf = u32(vbr, 0x24);
+                  if (bps >= 512 && spc0 > 0 && fats > 0 && spf > 0) {
+                      fsType = 1;
+                      if ((vbr[0x41] & 0x01) != 0) {
+                          vbr[0x41] = (byte) (vbr[0x41] & 0xFE); writeSec(partLba, vbr);
+                          sb.append("تم إصلاح خطأ الإقلاع (FAT32 Dirty Bit) بنجاح!");
+                      } else sb.append("تم فتح نظام FAT32 بنجاح!");
+                      int scale = bps / 512;
+                      spc = spc0 * scale;
+                      fatLba = partLba + (long) res * scale;
+                      dataLba = fatLba + (long) fats * spf * scale;
+                      rootClus = u32(vbr, 0x2C);
+                      return sb.toString();
+                  }
+                  return "نظام الملفات غير مدعوم أو يحتاج لتقسيم.";
+              }
+
+              private long nextClus(long c) throws Exception {
+                  byte[] s = readSec(fatLba + (c * 4) / 512, 1);
+                  return u32(s, (int) ((c * 4) % 512)) & 0x0FFFFFFFL;
+              }
+
+              private List<Entry> readDir(long clus, boolean noChain) throws Exception {
+                  List<Entry> list = new ArrayList<>();
+                  StringBuilder lfn = new StringBuilder();
+                  int cnt = 0;
+                  while (clus >= 2 && clus < 0x0FFFFFF7L && cnt++ < 64) {
+                      byte[] d = readSec(dataLba + (clus - 2) * spc, spc);
+                      if (fsType == 1) {
+                          for (int i = 0; i < d.length; i += 32) {
+                              int b0 = d[i] & 0xFF;
+                              if (b0 == 0) return list;
+                              if (b0 == 0xE5) { lfn.setLength(0); continue; }
+                              int attr = d[i + 11] & 0xFF;
+                              if (attr == 0x0F) { lfn.insert(0, lfnPart(d, i)); continue; }
+                              if ((attr & 0x08) != 0) { lfn.setLength(0); continue; }
+                              String name = lfn.length() > 0 ? lfn.toString().trim() : shortName(d, i);
+                              lfn.setLength(0);
+                              if (name.equals(".") || name.equals("..")) continue;
+                              Entry e = new Entry();
+                              e.name = name; e.isDir = (attr & 0x10) != 0;
+                              e.clus = (((long) u16(d, i + 20)) << 16) | u16(d, i + 26);
+                              e.size = u32(d, i + 28);
+                              list.add(e);
+                          }
+                      } else {
+                          for (int i = 0; i < d.length; ) {
+                              int t = d[i] & 0xFF;
+                              if (t == 0) return list;
+                              if (t == 0x85 && i + 64 <= d.length) {
+                                  int sc = d[i + 1] & 0xFF, attr = u16(d, i + 4);
+                                  if ((d[i + 32] & 0xFF) == 0xC0) {
+                                      Entry e = new Entry();
+                                      e.isDir = (attr & 0x10) != 0;
+                                      e.noChain = (d[i + 33] & 0x02) != 0;
+                                      e.clus = u32(d, i + 52);
+                                      e.size = u32(d, i + 56) | (u32(d, i + 60) << 32);
+                                      StringBuilder nm = new StringBuilder();
+                                      for (int s = 2; s <= sc && i + s * 32 + 32 <= d.length; s++)
+                                          if ((d[i + s * 32] & 0xFF) == 0xC1)
+                                              for (int p = 2; p < 32; p += 2) {
+                                                  int ch = u16(d, i + s * 32 + p);
+                                                  if (ch == 0 || ch == 0xFFFF) break;
+                                                  nm.append((char) ch);
+                                              }
+                                      e.name = nm.toString().trim();
+                                      if (!e.name.isEmpty()) list.add(e);
+                                  }
+                                  i += (sc + 1) * 32; continue;
+                              }
+                              i += 32;
+                          }
+                      }
+                      clus = noChain ? clus + 1 : nextClus(clus);
+                  }
+                  return list;
+              }
+
+              private String shortName(byte[] d, int o) {
+                  String b = new String(d, o, 8, StandardCharsets.US_ASCII).trim();
+                  String x = new String(d, o + 8, 3, StandardCharsets.US_ASCII).trim();
+                  return x.isEmpty() ? b : b + "." + x;
+              }
+
+              private String lfnPart(byte[] d, int o) {
+                  int[] pos = {1,3,5,7,9,14,16,18,20,22,24,28,30};
+                  StringBuilder s = new StringBuilder();
+                  for (int p : pos) {
+                      int c = u16(d, o + p);
+                      if (c == 0 || c == 0xFFFF) break;
+                      s.append((char) c);
+                  }
+                  return s.toString();
+              }
+
+              private int u16(byte[] b, int o) { return (b[o] & 0xFF) | ((b[o + 1] & 0xFF) << 8); }
+              private long u32(byte[] b, int o) {
+                  return (b[o] & 0xFFL) | ((b[o + 1] & 0xFFL) << 8) | ((b[o + 2] & 0xFFL) << 16) | ((b[o + 3] & 0xFFL) << 24);
+              }
+
+              @Override protected void onDestroy() {
+                  super.onDestroy();
+                  try { if (conn != null) { if (usbIf != null) conn.releaseInterface(usbIf); conn.close(); } } catch (Exception ignored) {}
+                  try { unregisterReceiver(receiver); } catch (Exception ignored) {}
+              }
+          }
+          EOF
+
+          gradle assembleDebug --no-daemon
 
       - uses: actions/upload-artifact@v4
         with:
