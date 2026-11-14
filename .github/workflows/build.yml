@@ -5,10 +5,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Unzip and Fix Manifest
+      - name: Unzip and Auto-Fix Code
         run: |
           unzip -o UsbFixer_Android_App_Project.zip
-          sed -i 's/android:allowBackup="true"//g' app/src/main/AndroidManifest.xml
+          python3 -c '
+          p = "app/src/main/java/com/example/usbfixer/MainActivity.kt"
+          s = open(p).read()
+          s = s.replace("✅ $fixLog\nاضغط", "✅ $fixLog\\nاضغط")
+          s = s.replace("في:\nDownloads", "في:\\nDownloads")
+          open(p, "w").write(s)
+          '
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -18,7 +24,7 @@ jobs:
         with:
           gradle-version: '8.4'
       - name: Build Debug APK
-        run: gradle assembleDebug --stacktrace
+        run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: UsbFixer-APK
