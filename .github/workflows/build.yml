@@ -12,640 +12,119 @@ jobs:
       - uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.4'
-      - name: Build DualSense Pro v2 APK
+      - name: Unpack and Build PS5 Pro v3 APK
         run: |
           rm -rf app build.gradle* settings.gradle* gradle.properties
-          mkdir -p app/src/main/java/com/example/dualsensepro app/src/main/res/xml
-
-          cat << 'EOF' > settings.gradle
-          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories { google(); mavenCentral() }
-          }
-          rootProject.name = "DualSensePro"
-          include ':app'
-          EOF
-
-          cat << 'EOF' > build.gradle
-          plugins { id 'com.android.application' version '8.1.4' apply false }
-          EOF
-
-          cat << 'EOF' > gradle.properties
-          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-          EOF
-
-          cat << 'EOF' > app/build.gradle
-          plugins { id 'com.android.application' }
-          android {
-              namespace 'com.example.dualsensepro'
-              compileSdk 34
-              defaultConfig {
-                  applicationId "com.example.dualsensepro"
-                  minSdk 24
-                  targetSdk 33
-                  versionCode 2
-                  versionName "2.0"
-              }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_1_8
-                  targetCompatibility JavaVersion.VERSION_1_8
-              }
-          }
-          EOF
-
-          cat << 'EOF' > app/src/main/res/xml/accessibility_config.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-              android:accessibilityEventTypes="typeAllMask"
-              android:accessibilityFeedbackType="feedbackGeneric"
-              android:accessibilityFlags="flagDefault|flagRequestFilterKeyEvents|flagRetrieveInteractiveWindows"
-              android:canPerformGestures="true"
-              android:canRequestFilterKeyEvents="true"
-              android:canRetrieveWindowContent="true"
-              android:notificationTimeout="5" />
-          EOF
-
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-feature android:name="android.hardware.usb.host" android:required="false" />
-              <uses-feature android:name="android.hardware.gamepad" android:required="false" />
-              <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-              <application android:label="DualSense Pro v2" android:supportsRtl="true" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-                  <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-                  <service android:name=".ControllerAccessibilityService" android:label="محرك أزرار PS5 والمايكرو الاحترافي" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true">
-                      <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
-                      <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_config" />
-                  </service>
-              </application>
-          </manifest>
-          EOF
-
-          cat << 'EOF' > app/src/main/java/com/example/dualsensepro/RemapConfig.java
-          package com.example.dualsensepro;
-          import android.content.*;
-          import android.view.KeyEvent;
-
-          public class RemapConfig {
-              private static final String PREFS = "ds_pro_v2";
-              public static final int BTN_CROSS = 0, BTN_CIRCLE = 1, BTN_SQUARE = 2, BTN_TRIANGLE = 3;
-              public static final int BTN_L1 = 4, BTN_R1 = 5, BTN_L2 = 6, BTN_R2 = 7, BTN_L3 = 8, BTN_R3 = 9;
-              public static final int BTN_UP = 10, BTN_DOWN = 11, BTN_LEFT = 12, BTN_RIGHT = 13;
-              public static final int BUTTON_COUNT = 14;
-
-              public static final int[] DEFAULT_PS5_CODES = {
-                  KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_C, KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_X,
-                  KeyEvent.KEYCODE_BUTTON_Y, KeyEvent.KEYCODE_BUTTON_Z, KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1,
-                  KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START,
-                  KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT
-              };
-
-              public static final String[] BUTTON_NAMES = {
-                  "✕ (إكس - Cross)", "◯ (دائرة - Circle)", "□ (مربع - Square)", "△ (مثلث - Triangle)",
-                  "L1 (الكتف الأيسر)", "R1 (الكتف الأيمن)", "L2 (الزناد الأيسر)", "R2 (الزناد الأيمن)",
-                  "L3 (العصا اليسرى)", "R3 (العصا اليمنى)", "سهم لأعلى", "سهم لأسفل", "سهم لليسار", "سهم لليمين"
-              };
-
-              public static final String[] IN_GAME_NAMES = {
-                  "داخل اللعبة: Button B", "داخل اللعبة: Button C", "داخل اللعبة: Button A", "داخل اللعبة: Button X",
-                  "داخل اللعبة: Button Y", "داخل اللعبة: Button Z", "داخل اللعبة: Button L1", "داخل اللعبة: Button R1",
-                  "داخل اللعبة: Select/L3", "داخل اللعبة: Start/R3", "D-Pad Up", "D-Pad Down", "D-Pad Left", "D-Pad Right"
-              };
-
-              public static final String[] SHORT_LABELS = {"✕","◯","□","△","L1","R1","L2","R2","L3","R3","↑","↓","←","→"};
-
-              private static SharedPreferences p(Context c) { return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
-              public static int getHwCode(Context c, int id) { return p(c).getInt("hw_" + id, DEFAULT_PS5_CODES[id]); }
-              public static void setHwCode(Context c, int id, int code) { p(c).edit().putInt("hw_" + id, code).apply(); }
-              public static void resetHw(Context c) {
-                  SharedPreferences.Editor e = p(c).edit();
-                  for (int i = 0; i < BUTTON_COUNT; i++) e.putInt("hw_" + i, DEFAULT_PS5_CODES[i]);
-                  e.apply();
-              }
-              public static int findIdByCode(Context c, int code) {
-                  for (int i = 0; i < BUTTON_COUNT; i++) if (getHwCode(c, i) == code) return i;
-                  if (code == KeyEvent.KEYCODE_BUTTON_THUMBL) return BTN_L3;
-                  if (code == KeyEvent.KEYCODE_BUTTON_THUMBR) return BTN_R3;
-                  return -1;
-              }
-              public static int getMappedId(Context c, int id) { return p(c).getInt("map_" + id, id); }
-              public static void setMappedId(Context c, int id, int target) { p(c).edit().putInt("map_" + id, target).apply(); }
-              public static void resetMaps(Context c) {
-                  SharedPreferences.Editor e = p(c).edit();
-                  for (int i = 0; i < BUTTON_COUNT; i++) { e.putInt("map_" + i, i); e.putBoolean("tb_" + i, false); }
-                  e.apply();
-              }
-              public static boolean isTurbo(Context c, int id) { return p(c).getBoolean("tb_" + id, false); }
-              public static void setTurbo(Context c, int id, boolean en) { p(c).edit().putBoolean("tb_" + id, en).apply(); }
-              public static boolean isHold(Context c) { return p(c).getBoolean("hold", true); }
-              public static void setHold(Context c, boolean en) { p(c).edit().putBoolean("hold", en).apply(); }
-              public static int getHudCount(Context c) { return p(c).getInt("hud_cnt", 6); }
-              public static void setHudCount(Context c, int cnt) { p(c).edit().putInt("hud_cnt", cnt).apply(); }
-
-              public static float getX(Context c, int id, int w, int h) {
-                  int mw = Math.max(w, h);
-                  float def = (id == 0) ? mw * 0.77f : (id == 1 ? mw * 0.87f : (id == 2 ? mw * 0.67f : (id == 3 ? mw * 0.77f : 160f + (id % 5) * 130f)));
-                  return p(c).getFloat("px_" + id, def);
-              }
-              public static float getY(Context c, int id, int w, int h) {
-                  int mh = Math.min(w, h);
-                  float def = (id == 0) ? mh * 0.70f : (id == 1 ? mh * 0.50f : (id == 2 ? mh * 0.70f : (id == 3 ? mh * 0.42f : 180f + (id / 5) * 130f)));
-                  return p(c).getFloat("py_" + id, def);
-              }
-              public static void savePos(Context c, int id, float x, float y) { p(c).edit().putFloat("px_" + id, x).putFloat("py_" + id, y).apply(); }
-              public static void applySideswipe(Context c, int w, int h) {
-                  int mw = Math.max(w, h), mh = Math.min(w, h);
-                  p(c).edit()
-                      .putFloat("px_0", mw * 0.77f).putFloat("py_0", mh * 0.70f)
-                      .putFloat("px_1", mw * 0.87f).putFloat("py_1", mh * 0.50f)
-                      .putFloat("px_2", mw * 0.67f).putFloat("py_2", mh * 0.70f)
-                      .putFloat("px_3", mw * 0.77f).putFloat("py_3", mh * 0.42f)
-                      .putFloat("px_4", mw * 0.15f).putFloat("py_4", mh * 0.25f)
-                      .putFloat("px_5", mw * 0.85f).putFloat("py_5", mh * 0.25f).apply();
-              }
-
-              public static boolean isMacroEn(Context c, int s) { return p(c).getBoolean("m_en_" + s, false); }
-              public static void setMacroEn(Context c, int s, boolean en) { p(c).edit().putBoolean("m_en_" + s, en).apply(); }
-              public static int getMacroT1(Context c, int s) { return p(c).getInt("m_t1_" + s, s == 1 ? BTN_L1 : (s == 2 ? BTN_R1 : BTN_L3)); }
-              public static int getMacroT2(Context c, int s) { return p(c).getInt("m_t2_" + s, -1); }
-              public static int getMacroS(Context c, int s, int idx) { return p(c).getInt("m_s_" + s + "_" + idx, idx == 0 ? BTN_CROSS : (idx == 1 ? BTN_CIRCLE : -1)); }
-              public static int getMacroDelay(Context c, int s) { return p(c).getInt("m_del_" + s, 0); }
-              public static void saveMacro(Context c, int s, int t1, int t2, int s1, int s2, int s3, int del) {
-                  p(c).edit().putBoolean("m_en_" + s, true).putInt("m_t1_" + s, t1).putInt("m_t2_" + s, t2)
-                      .putInt("m_s_" + s + "_0", s1).putInt("m_s_" + s + "_1", s2).putInt("m_s_" + s + "_2", s3).putInt("m_del_" + s, del).apply();
-              }
-          }
-          EOF
-
-          cat << 'EOF' > app/src/main/java/com/example/dualsensepro/ControllerAccessibilityService.java
-          package com.example.dualsensepro;
-          import android.accessibilityservice.*;
-          import android.content.*;
-          import android.graphics.*;
-          import android.graphics.drawable.GradientDrawable;
-          import android.os.*;
-          import android.provider.Settings;
-          import android.util.DisplayMetrics;
-          import android.view.*;
-          import android.view.accessibility.AccessibilityEvent;
-          import android.widget.*;
-          import java.util.*;
-
-          public class ControllerAccessibilityService extends AccessibilityService {
-              public static ControllerAccessibilityService instance;
-              public static final String ACTION_DEBUG = "com.example.dualsensepro.DBG";
-              public static volatile boolean calibrating = false;
-              private WindowManager wm;
-              private View barView;
-              private final Map<Integer, View> views = new HashMap<>();
-              private final Map<Integer, WindowManager.LayoutParams> params = new HashMap<>();
-              private boolean showing = false, locked = false;
-              private final Set<Integer> pressed = new HashSet<>();
-              private final Set<Integer> holdTargets = new LinkedHashSet<>();
-              private final long[] lastMs = new long[14];
-              private final Map<Integer, Runnable> turbos = new HashMap<>();
-              private final Handler h = new Handler(Looper.getMainLooper());
-
-              @Override protected void onServiceConnected() {
-                  super.onServiceConnected();
-                  instance = this;
-                  wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-                  try { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY); } catch (Exception ignored) {}
-                  Toast.makeText(this, "تم تفعيل محرك أزرار PS5 بنجاح", Toast.LENGTH_SHORT).show();
-              }
-              @Override public void onAccessibilityEvent(AccessibilityEvent e) {}
-              @Override public void onInterrupt() {}
-
-              @Override protected boolean onKeyEvent(KeyEvent ev) {
-                  int code = ev.getKeyCode(), act = ev.getAction();
-                  if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_HOME || code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN) return false;
-                  int id = RemapConfig.findIdByCode(this, code);
-                  int mapId = id >= 0 ? RemapConfig.getMappedId(this, id) : -1;
-
-                  Intent i = new Intent(ACTION_DEBUG).setPackage(getPackageName());
-                  i.putExtra("raw", code).putExtra("id", id).putExtra("mapId", mapId).putExtra("act", act);
-                  sendBroadcast(i);
-
-                  if (calibrating) return true;
-                  if (!showing || !locked) {
-                      if (act == KeyEvent.ACTION_UP) { pressed.clear(); holdTargets.clear(); }
-                      return false;
-                  }
-                  if (id >= 10 && id <= 13 && !params.containsKey(mapId)) return false;
-                  if (id < 0) return false;
-
-                  if (act == KeyEvent.ACTION_DOWN) {
-                      if (ev.getRepeatCount() > 0) return true;
-                      long now = System.currentTimeMillis();
-                      if (now - lastMs[id] < 18) return true;
-                      lastMs[id] = now;
-                      if (!pressed.add(id)) return true;
-
-                      for (int s = 1; s <= 3; s++) {
-                          if (!RemapConfig.isMacroEn(this, s)) continue;
-                          int t1 = RemapConfig.getMacroT1(this, s), t2 = RemapConfig.getMacroT2(this, s);
-                          if ((t2 >= 0 && ((id == t1 && pressed.contains(t2)) || (id == t2 && pressed.contains(t1)))) || (t2 < 0 && id == t1)) {
-                              runMacro(s);
-                              return true;
-                          }
-                      }
-                      if (RemapConfig.isTurbo(this, id)) {
-                          tap(mapId, 40);
-                          Runnable r = new Runnable() { @Override public void run() { if (pressed.contains(id) && showing && locked) { tap(mapId, 35); h.postDelayed(this, 50); } } };
-                          turbos.put(id, r); h.postDelayed(r, 50);
-                      } else if (RemapConfig.isHold(this)) {
-                          holdTargets.add(mapId);
-                          updateHold();
-                      } else tap(mapId, 55);
-                      return true;
-                  } else if (act == KeyEvent.ACTION_UP) {
-                      pressed.remove(id);
-                      Runnable r = turbos.remove(id); if (r != null) h.removeCallbacks(r);
-                      for (int s = 1; s <= 3; s++) {
-                          if (RemapConfig.isMacroEn(this, s) && RemapConfig.getMacroT1(this, s) == id) {
-                              holdTargets.remove(RemapConfig.getMacroS(this, s, 0));
-                              holdTargets.remove(RemapConfig.getMacroS(this, s, 1));
-                              holdTargets.remove(RemapConfig.getMacroS(this, s, 2));
-                          }
-                      }
-                      if (holdTargets.remove(mapId) || RemapConfig.isHold(this)) updateHold();
-                      return true;
-                  }
-                  return false;
-              }
-
-              private void updateHold() {
-                  if (Build.VERSION.SDK_INT < 24) return;
-                  if (holdTargets.isEmpty()) {
-                      Path p = new Path(); p.moveTo(2f, 2f);
-                      dispatchGesture(new GestureDescription.Builder().addStroke(new GestureDescription.StrokeDescription(p, 0, 1)).build(), null, null);
-                      return;
-                  }
-                  GestureDescription.Builder b = new GestureDescription.Builder();
-                  int k = 0;
-                  for (int tid : holdTargets) {
-                      float[] xy = center(tid);
-                      Path p = new Path(); p.moveTo(xy[0] + k, xy[1]); p.lineTo(xy[0] + k + 1f, xy[1] + 1f);
-                      b.addStroke(new GestureDescription.StrokeDescription(p, 0, 12000));
-                      k++;
-                  }
-                  if (k > 0) dispatchGesture(b.build(), null, null);
-              }
-
-              private void runMacro(int s) {
-                  int s1 = RemapConfig.getMacroS(this, s, 0), s2 = RemapConfig.getMacroS(this, s, 1), s3 = RemapConfig.getMacroS(this, s, 2);
-                  int del = RemapConfig.getMacroDelay(this, s);
-                  if (del <= 5 && RemapConfig.isHold(this)) {
-                      if (s1 >= 0) holdTargets.add(s1);
-                      if (s2 >= 0) holdTargets.add(s2);
-                      if (s3 >= 0) holdTargets.add(s3);
-                      updateHold();
-                  } else {
-                      if (s1 >= 0) tap(s1, 50);
-                      if (s2 >= 0) h.postDelayed(() -> tap(s2, 50), Math.max(10, del));
-                      if (s3 >= 0) h.postDelayed(() -> tap(s3, 50), Math.max(20, del * 2L));
-                  }
-              }
-
-              private void tap(int tid, int ms) {
-                  if (Build.VERSION.SDK_INT < 24 || tid < 0) return;
-                  float[] xy = center(tid);
-                  Path p = new Path(); p.moveTo(xy[0], xy[1]);
-                  dispatchGesture(new GestureDescription.Builder().addStroke(new GestureDescription.StrokeDescription(p, 0, ms)).build(), null, null);
-              }
-
-              private float[] center(int id) {
-                  WindowManager.LayoutParams lp = params.get(id);
-                  if (lp != null) return new float[]{lp.x + 52f, lp.y + 52f};
-                  DisplayMetrics dm = getResources().getDisplayMetrics();
-                  return new float[]{RemapConfig.getX(this, id, dm.widthPixels, dm.heightPixels) + 52f, RemapConfig.getY(this, id, dm.widthPixels, dm.heightPixels) + 52f};
-              }
-
-              public void toggleHud() {
-                  if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) return;
-                  if (showing) removeHud(); else showHud();
-              }
-
-              public void refreshHud() { if (showing) { removeHud(); showHud(); } }
-
-              private void showHud() {
-                  if (showing) return;
-                  showing = true; locked = false;
-                  int type = Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
-                  DisplayMetrics dm = getResources().getDisplayMetrics();
-
-                  LinearLayout bar = new LinearLayout(this);
-                  bar.setPadding(14, 8, 14, 8);
-                  GradientDrawable bg = new GradientDrawable(); bg.setColor(Color.argb(230, 15, 23, 42)); bg.setCornerRadius(28f); bg.setStroke(2, Color.CYAN);
-                  bar.setBackground(bg);
-
-                  TextView t = new TextView(this); t.setText("PS5 HUD "); t.setTextColor(Color.CYAN); t.setTypeface(Typeface.DEFAULT_BOLD);
-                  Button lockBtn = new Button(this); lockBtn.setText("حرّك الدوائر ثم اضغط للقفل واللعب"); lockBtn.setTextSize(11f); lockBtn.setAllCaps(false); lockBtn.setTextColor(Color.WHITE); lockBtn.setBackgroundColor(Color.parseColor("#059669"));
-                  Button closeBtn = new Button(this); closeBtn.setText("إغلاق"); closeBtn.setTextSize(11f); closeBtn.setAllCaps(false); closeBtn.setTextColor(Color.WHITE); closeBtn.setBackgroundColor(Color.RED);
-                  bar.addView(t); bar.addView(lockBtn); bar.addView(closeBtn);
-
-                  WindowManager.LayoutParams blp = new WindowManager.LayoutParams(-2, -2, type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
-                  blp.gravity = Gravity.TOP | Gravity.START; blp.x = 40; blp.y = 30;
-                  t.setOnTouchListener(new View.OnTouchListener() {
-                      float dx, dy;
-                      @Override public boolean onTouch(View v, MotionEvent e) {
-                          if (e.getAction() == MotionEvent.ACTION_DOWN) { dx = blp.x - e.getRawX(); dy = blp.y - e.getRawY(); }
-                          else if (e.getAction() == MotionEvent.ACTION_MOVE) { blp.x = (int)(e.getRawX() + dx); blp.y = (int)(e.getRawY() + dy); wm.updateViewLayout(bar, blp); }
-                          return true;
-                      }
-                  });
-                  lockBtn.setOnClickListener(v -> {
-                      locked = !locked; pressed.clear(); holdTargets.clear();
-                      lockBtn.setText(locked ? "مقفل للعب (الأزرار نشطة)" : "حرّك الدوائر ثم اضغط للقفل واللعب");
-                      lockBtn.setBackgroundColor(Color.parseColor(locked ? "#2563EB" : "#059669"));
-                      for (Map.Entry<Integer, View> en : views.entrySet()) {
-                          WindowManager.LayoutParams lp = params.get(en.getKey());
-                          lp.flags = locked ? (WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) : WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
-                          en.getValue().setAlpha(locked ? 0.35f : 0.95f);
-                          wm.updateViewLayout(en.getValue(), lp);
-                      }
-                  });
-                  closeBtn.setOnClickListener(v -> removeHud());
-                  wm.addView(bar, blp); barView = bar;
-
-                  String[] hints = {"قفز ✕","تيربو ◯","شقلبة □","مثلث △","L1","R1","L2","R2","L3","R3","↑","↓","←","→"};
-                  String[] cols = {"#2563EB","#DC2626","#9333EA","#059669","#0284C7","#0284C7","#4F46E5","#4F46E5","#334155","#334155","#334155","#334155","#334155","#334155"};
-                  int cnt = Math.min(RemapConfig.getHudCount(this), 14);
-                  for (int i = 0; i < cnt; i++) {
-                      final int id = i;
-                      TextView tv = new TextView(this);
-                      tv.setText(hints[i]); tv.setTextColor(Color.WHITE); tv.setTextSize(12f); tv.setTypeface(Typeface.DEFAULT_BOLD); tv.setGravity(Gravity.CENTER);
-                      GradientDrawable c = new GradientDrawable(); c.setShape(GradientDrawable.OVAL);
-                      int bc = Color.parseColor(cols[i]); c.setColor(Color.argb(180, Color.red(bc), Color.green(bc), Color.blue(bc))); c.setStroke(3, Color.WHITE);
-                      tv.setBackground(c);
-                      WindowManager.LayoutParams lp = new WindowManager.LayoutParams(104, 104, type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
-                      lp.gravity = Gravity.TOP | Gravity.START;
-                      lp.x = (int) RemapConfig.getX(this, id, dm.widthPixels, dm.heightPixels);
-                      lp.y = (int) RemapConfig.getY(this, id, dm.widthPixels, dm.heightPixels);
-                      tv.setOnTouchListener(new View.OnTouchListener() {
-                          float dx, dy;
-                          @Override public boolean onTouch(View v, MotionEvent e) {
-                              if (locked) return false;
-                              if (e.getAction() == MotionEvent.ACTION_DOWN) { dx = lp.x - e.getRawX(); dy = lp.y - e.getRawY(); }
-                              else if (e.getAction() == MotionEvent.ACTION_MOVE) { lp.x = (int)(e.getRawX() + dx); lp.y = (int)(e.getRawY() + dy); wm.updateViewLayout(tv, lp); }
-                              else if (e.getAction() == MotionEvent.ACTION_UP) RemapConfig.savePos(ControllerAccessibilityService.this, id, lp.x, lp.y);
-                              return true;
-                          }
-                      });
-                      wm.addView(tv, lp); views.put(id, tv); params.put(id, lp);
-                  }
-              }
-
-              public void removeHud() {
-                  if (!showing) return;
-                  showing = false; locked = false; pressed.clear(); holdTargets.clear();
-                  try { if (barView != null) wm.removeView(barView); } catch (Exception ignored) {}
-                  barView = null;
-                  for (View v : views.values()) { try { wm.removeView(v); } catch (Exception ignored) {} }
-                  views.clear(); params.clear();
-              }
-              @Override public void onDestroy() { super.onDestroy(); removeHud(); instance = null; }
-          }
-          EOF
-
-          cat << 'EOF' > app/src/main/java/com/example/dualsensepro/MainActivity.java
-          package com.example.dualsensepro;
-          import android.app.*;
-          import android.content.*;
-          import android.graphics.*;
-          import android.graphics.drawable.GradientDrawable;
-          import android.net.Uri;
-          import android.os.*;
-          import android.provider.Settings;
-          import android.util.DisplayMetrics;
-          import android.view.*;
-          import android.widget.*;
-          import java.util.*;
-
-          public class MainActivity extends Activity {
-              private TextView testTv;
-              private FrameLayout box;
-              private int tab = 0, calId = -1;
-              private AlertDialog calDlg;
-
-              private final BroadcastReceiver rx = new BroadcastReceiver() {
-                  @Override public void onReceive(Context c, Intent i) {
-                      if (i.getIntExtra("act", -1) == KeyEvent.ACTION_DOWN) {
-                          int raw = i.getIntExtra("raw", 0), id = i.getIntExtra("id", -1), mapId = i.getIntExtra("mapId", -1);
-                          handleKey(raw, id, mapId);
-                      }
-                  }
-              };
-
-              private void handleKey(int raw, int id, int mapId) {
-                  if (calId >= 0) {
-                      RemapConfig.setHwCode(this, calId, raw);
-                      String nm = RemapConfig.BUTTON_NAMES[calId];
-                      calId = -1; ControllerAccessibilityService.calibrating = false;
-                      if (calDlg != null) { try { calDlg.dismiss(); } catch (Exception ignored) {} calDlg = null; }
-                      showTab(tab);
-                      Toast.makeText(this, "تم تعريف الزر (" + nm + ") بنجاح!", Toast.LENGTH_LONG).show();
-                      return;
-                  }
-                  if (testTv != null) {
-                      String n1 = id >= 0 ? RemapConfig.BUTTON_NAMES[id] : ("كود خام: " + raw);
-                      String n2 = mapId >= 0 ? RemapConfig.BUTTON_NAMES[mapId] : n1;
-                      String n3 = id >= 0 ? RemapConfig.IN_GAME_NAMES[id] : "";
-                      testTv.setText("الزر الحقيقي في PS5: " + n1 + "\nالوظيفة المنفذة: " + n2 + "\n" + n3 + "\nالاستجابة: 0.50 ms");
-                  }
-              }
-
-              @Override protected void onCreate(Bundle b) {
-                  super.onCreate(b);
-                  requestWindowFeature(Window.FEATURE_NO_TITLE);
-                  LinearLayout root = new LinearLayout(this);
-                  root.setOrientation(LinearLayout.VERTICAL);
-                  root.setBackgroundColor(Color.parseColor("#0B0F19"));
-                  root.setPadding(16, 20, 16, 12);
-
-                  TextView h = new TextView(this);
-                  h.setText("DualSense PS5 Pro v2 (الأسماء المصححة)");
-                  h.setTextSize(17f); h.setTextColor(Color.parseColor("#38BDF8")); h.setTypeface(Typeface.DEFAULT_BOLD); h.setGravity(Gravity.CENTER);
-                  root.addView(h);
-
-                  LinearLayout top = new LinearLayout(this);
-                  Button b1 = btn("1. تفعيل المحرك", "#2563EB");
-                  Button b2 = btn("2. تشغيل رادار الألعاب", "#059669");
-                  b1.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
-                  b2.setOnClickListener(v -> {
-                      if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
-                          startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName())));
-                          return;
-                      }
-                      if (ControllerAccessibilityService.instance != null) ControllerAccessibilityService.instance.toggleHud();
-                      else startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-                  });
-                  top.addView(b1); top.addView(b2);
-                  root.addView(top);
-
-                  LinearLayout tabs = new LinearLayout(this);
-                  tabs.setPadding(0, 10, 0, 8);
-                  String[] tNames = {"الأزرار والمعايرة", "المايكرو", "روكت ليغ", "الفاحص"};
-                  for (int i = 0; i < 4; i++) {
-                      final int idx = i;
-                      Button tb = btn(tNames[i], "#1E293B");
-                      tb.setOnClickListener(v -> showTab(idx));
-                      tabs.addView(tb);
-                  }
-                  root.addView(tabs);
-
-                  box = new FrameLayout(this);
-                  root.addView(box, new LinearLayout.LayoutParams(-1, 0, 1f));
-                  setContentView(root);
-                  showTab(0);
-
-                  IntentFilter f = new IntentFilter(ControllerAccessibilityService.ACTION_DEBUG);
-                  if (Build.VERSION.SDK_INT >= 33) registerReceiver(rx, f, Context.RECEIVER_EXPORTED);
-                  else registerReceiver(rx, f);
-              }
-
-              private Button btn(String t, String hex) {
-                  Button b = new Button(this); b.setText(t); b.setTextColor(Color.WHITE); b.setTextSize(11f); b.setAllCaps(false);
-                  GradientDrawable g = new GradientDrawable(); g.setColor(Color.parseColor(hex)); g.setCornerRadius(14f); b.setBackground(g);
-                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f); lp.setMargins(4, 4, 4, 4); b.setLayoutParams(lp);
-                  return b;
-              }
-
-              private LinearLayout card(String hex) {
-                  LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(16, 14, 16, 14);
-                  GradientDrawable g = new GradientDrawable(); g.setColor(Color.parseColor(hex)); g.setCornerRadius(16f); l.setBackground(g);
-                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.setMargins(4, 6, 4, 6); l.setLayoutParams(lp);
-                  return l;
-              }
-
-              private void showTab(int idx) {
-                  tab = idx; box.removeAllViews();
-                  ScrollView sv = new ScrollView(this);
-                  LinearLayout col = new LinearLayout(this); col.setOrientation(LinearLayout.VERTICAL);
-                  if (idx == 0) {
-                      LinearLayout r0 = new LinearLayout(this);
-                      Button rm = btn("إلغاء تعديل الوظائف", "#475569");
-                      Button rh = btn("ضبط مصنع لأكواد PS5", "#0369A1");
-                      rm.setOnClickListener(v -> { RemapConfig.resetMaps(this); showTab(0); });
-                      rh.setOnClickListener(v -> { RemapConfig.resetHw(this); showTab(0); });
-                      r0.addView(rm); r0.addView(rh); col.addView(r0);
-
-                      for (int i = 0; i < RemapConfig.BUTTON_COUNT; i++) {
-                          final int id = i;
-                          int mapId = RemapConfig.getMappedId(this, id);
-                          LinearLayout c = card(id != mapId ? "#0369A1" : "#1E293B");
-                          TextView tv = new TextView(this);
-                          tv.setText("الزر الحقيقي: " + RemapConfig.BUTTON_NAMES[id] + "\nالوظيفة المنفذة: " + RemapConfig.BUTTON_NAMES[mapId] + "\n" + RemapConfig.IN_GAME_NAMES[id]);
-                          tv.setTextColor(Color.WHITE); tv.setTextSize(12f);
-                          c.addView(tv);
-
-                          LinearLayout br = new LinearLayout(this);
-                          Button bChg = btn("تغيير الوظيفة", "#2563EB");
-                          Button bCal = btn("تعريف بالضغط", "#059669");
-                          CheckBox cb = new CheckBox(this); cb.setText("تيربو"); cb.setTextColor(Color.YELLOW); cb.setChecked(RemapConfig.isTurbo(this, id));
-                          cb.setOnCheckedChangeListener((x, chk) -> RemapConfig.setTurbo(this, id, chk));
-                          bChg.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("اختر الوظيفة الجديدة:").setItems(RemapConfig.BUTTON_NAMES, (d, w) -> { RemapConfig.setMappedId(this, id, w); showTab(0); }).show());
-                          bCal.setOnClickListener(v -> {
-                              calId = id; ControllerAccessibilityService.calibrating = true;
-                              calDlg = new AlertDialog.Builder(this).setTitle("اضغط على زر " + RemapConfig.BUTTON_NAMES[id] + " في يدك الآن")
-                                  .setNegativeButton("إلغاء", (d, w) -> { calId = -1; ControllerAccessibilityService.calibrating = false; }).show();
-                          });
-                          br.addView(bChg); br.addView(bCal); br.addView(cb);
-                          c.addView(br); col.addView(c);
-                      }
-                  } else if (idx == 1) {
-                      for (int s = 1; s <= 3; s++) {
-                          final int slot = s;
-                          LinearLayout c = card("#1E293B");
-                          CheckBox cb = new CheckBox(this); cb.setText("تفعيل مايكرو #" + slot); cb.setTextColor(Color.CYAN); cb.setChecked(RemapConfig.isMacroEn(this, slot));
-                          cb.setOnCheckedChangeListener((x, chk) -> RemapConfig.setMacroEn(this, slot, chk));
-                          c.addView(cb);
-                          TextView info = new TextView(this);
-                          int t1 = RemapConfig.getMacroT1(this, slot), t2 = RemapConfig.getMacroT2(this, slot);
-                          int s1 = RemapConfig.getMacroS(this, slot, 0), s2 = RemapConfig.getMacroS(this, slot, 1), s3 = RemapConfig.getMacroS(this, slot, 2);
-                          info.setText("التشغيل: " + RemapConfig.SHORT_LABELS[t1] + (t2 >= 0 ? " + " + RemapConfig.SHORT_LABELS[t2] : "") +
-                              "\nينفذ معاً: " + (s1 >= 0 ? RemapConfig.SHORT_LABELS[s1] : "") + (s2 >= 0 ? " + " + RemapConfig.SHORT_LABELS[s2] : "") + (s3 >= 0 ? " + " + RemapConfig.SHORT_LABELS[s3] : ""));
-                          info.setTextColor(Color.WHITE); c.addView(info);
-                          Button ed = btn("تعديل أزرار المايكرو #" + slot, "#7C3AED");
-                          ed.setOnClickListener(v -> editMacro(slot));
-                          c.addView(ed); col.addView(c);
-                      }
-                  } else if (idx == 2) {
-                      LinearLayout c = card("#1E293B");
-                      TextView tv = new TextView(this);
-                      tv.setText("إعداد لعبة Rocket League Sideswipe:\n• تم تفعيل الضغط المطول المستمر للتيربو (Boost) واللمس المتعدد للقفز مع التيربو في نفس اللحظة.\n• اضغط الزر بالأسفل لترتيب الدوائر تلقائياً ثم شغّل الرادار العائم:");
-                      tv.setTextColor(Color.WHITE); tv.setTextSize(13f); c.addView(tv);
-                      Button rl = btn("ضبط أزرار Rocket League Sideswipe الآن", "#059669");
-                      rl.setOnClickListener(v -> {
-                          DisplayMetrics dm = getResources().getDisplayMetrics();
-                          RemapConfig.setHold(this, true); RemapConfig.setHudCount(this, 6);
-                          RemapConfig.applySideswipe(this, dm.widthPixels, dm.heightPixels);
-                          RemapConfig.saveMacro(this, 1, RemapConfig.BTN_L1, -1, RemapConfig.BTN_CROSS, RemapConfig.BTN_CIRCLE, -1, 0);
-                          if (ControllerAccessibilityService.instance != null) ControllerAccessibilityService.instance.refreshHud();
-                          Toast.makeText(this, "تم ضبط أزرار روكت ليغ + مايكرو L1 (قفز وتيربو معاً)!", Toast.LENGTH_LONG).show();
-                      });
-                      c.addView(rl); col.addView(c);
-                  } else {
-                      LinearLayout c = card("#1E293B");
-                      testTv = new TextView(this);
-                      testTv.setText("اضغط أي زر في يد PS5 الآن للتأكد من اسمه الحقيقي...");
-                      testTv.setTextColor(Color.WHITE); testTv.setTextSize(15f);
-                      c.addView(testTv); col.addView(c);
-                  }
-                  sv.addView(col); box.addView(sv);
-              }
-
-              private void editMacro(int slot) {
-                  LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(24, 16, 24, 16);
-                  Spinner t1 = spin(RemapConfig.getMacroT1(this, slot), false);
-                  Spinner t2 = spin(RemapConfig.getMacroT2(this, slot), true);
-                  Spinner s1 = spin(RemapConfig.getMacroS(this, slot, 0), false);
-                  Spinner s2 = spin(RemapConfig.getMacroS(this, slot, 1), false);
-                  Spinner s3 = spin(RemapConfig.getMacroS(this, slot, 2), true);
-                  l.addView(lbl("زر التشغيل 1:")); l.addView(t1);
-                  l.addView(lbl("زر تشغيل 2 للدمج (اختياري):")); l.addView(t2);
-                  l.addView(lbl("الزر المدمج 1:")); l.addView(s1);
-                  l.addView(lbl("الزر المدمج 2:")); l.addView(s2);
-                  l.addView(lbl("الزر المدمج 3 (اختياري):")); l.addView(s3);
-                  new AlertDialog.Builder(this).setTitle("ضبط المايكرو #" + slot).setView(l)
-                      .setPositiveButton("حفظ", (d, w) -> {
-                          RemapConfig.saveMacro(this, slot, t1.getSelectedItemPosition(),
-                              t2.getSelectedItemPosition() == 0 ? -1 : t2.getSelectedItemPosition() - 1,
-                              s1.getSelectedItemPosition(), s2.getSelectedItemPosition(),
-                              s3.getSelectedItemPosition() == 0 ? -1 : s3.getSelectedItemPosition() - 1, 0);
-                          showTab(1);
-                      }).setNegativeButton("إلغاء", null).show();
-              }
-
-              private TextView lbl(String s) { TextView t = new TextView(this); t.setText(s); return t; }
-              private Spinner spin(int cur, boolean none) {
-                  Spinner sp = new Spinner(this); List<String> list = new ArrayList<>();
-                  if (none) list.add("-- بدون --");
-                  Collections.addAll(list, RemapConfig.BUTTON_NAMES);
-                  sp.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, list));
-                  sp.setSelection(cur >= 0 ? (none ? cur + 1 : cur) : 0);
-                  return sp;
-              }
-
-              @Override public boolean onKeyDown(int code, KeyEvent ev) {
-                  if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN) return super.onKeyDown(code, ev);
-                  int id = RemapConfig.findIdByCode(this, code);
-                  handleKey(code, id, id >= 0 ? RemapConfig.getMappedId(this, id) : -1);
-                  return true;
-              }
-              @Override protected void onDestroy() { super.onDestroy(); ControllerAccessibilityService.calibrating = false; try { unregisterReceiver(rx); } catch (Exception ignored) {} }
-          }
-          EOF
-
+          echo "
+            H4sIAAf1+2oC/+19a3Mbx5WoP+tXtJDaeGCTIB4kJZGSvCAIStyAjwUh2YqjYg2AITHRcAY7M+BjbVVFtiQr2nv3bpK9uVVbqetyXFnZimVFlh3H+SXAV/+B659wz+numemeFwaS/Mgu
+            xhYBzJxz+nX69Hl1j6O5rm7uO4V9W+0a2kvfxlWEa3F+nn7CFf4szpf9Z+x+qXhmceElUnzpO7gGjqvaUPxL/z2vvjHY180N1VT3tQPNdMlbxNb6lqO7lq1rDvzct6x9Q1Pyy+RAPdTM
+            GgDZqoG/GctsUwrblu3iXXKT3DzV1fqa2dXMzklTcyxj4OqWVMQpApdYzIbV1QqO5irN8M216npjd2tzd7u59Q/1Wmu3Wd/e2slHCKTUE+pz85RtWe62bf1c67gFUz3QyAWS295ZgFtX
+            K7lTutkxBl2NvLyk9vsvn/rvNP7tgW50v83Jn2H+l4oL4flfLhen8/+7m/84f/QuebljHRRUs2tbercAU8HQOyrO3ZfJoWY78IW8fLZQKsy/TPDhCdlTDUeD+fXS9PpbvdjML/Rtq6/Z
+            LkjS72H+Fxcroflfqkzn/3dzWfY+l/6Fnx8eqPa+c2H2jYPjcnH+7AGZXd3T4QEs5FYXlMQLV1prs2ens/2/0gWCfO7b1gHGzf/FSik8/8EomM7/H9D6f/MUv82Vd9Shnb7a0RiOdqwe
+            9HEZcRZgJSkcVl6mUPCoDwJkp3uDVObpna62pw4Mt2aZe/o+p4WXUNh6l+RiaeZ86APdRJrlef8OjOG+5tKCKv5NrrTUwI4gkbubaAXkKoXiLNgBs2v6sdZlBdwUq77Vxyo5Qk0da2B3
+            tBo8htq2dUN3T8g/qIfqVUa2cLXe3FkHg6W0ezZUu+w4aLF8h/PfsTtzB6puztmaM3d8YMypnY7mOLymux06WAV48C3N/zOLxdD8X1yolKfz/7u4zr8G4+rNiQu5UqGYI/56nxu4e7Nn
+            c69dPHVeYolZR7MPdZj8gGs6S1w0XMj1XLe/NDfndHrager4kgTm0pzav0HZi99jU43/WJKI18F4d1snfc25kHPho2oYG6pzIwVjTdO6bbVzA5Eu5Pb4r0uaqdl6Jw3PUEHdye3BxyqT
+            S2/j96b2TwPNcdd0w9Xsn2isQg5/5Nq6dqitm/BI7bj6ofa6bnatI0cupqOa25q9Z9kHl4DSwKZtsQdaBCq+rERgVjorEmSoC8BxsKbl6ntcnLb0A80aANhCjsxdPJU6/6sMf0M19T2o
+            1XNM+Unmf6UU8f/Nw83p/P8hzf8DzhPPMeUvUh49P3A0Z3ZPU3FaBBwLq/GFnIfdU+3ukWprhYHTLvQsx835gDZMGN3WoGTqfKA8PTHZfbjdV7tZqYJlfKA71P8RTzgAKOxc22nVN3ar
+            jXqztfv6+ubq1uvPQe3q+kqz2qpTCoyEoCgFyhMnY6htzbiAfk2ybVvksEKGD0a3R3eGXwwfDR/lIvDOoN+3bNdpuoYoRUQQF4YVqvb3Pop7YmhzLbxbWNVwDeCSs7BpVTtYqxXVzvHK
+            sgqjlARh69+RBBVteGEDhE+Vw+ViAbVjrCkOkFxPSUJSPaXWU819lLfoFzZd2lNvOx1b08wd/Z+1t29oJ20LGMH/clnvdjXzbVM91PcpNGdUvwU6lbOze1RGy8/8FiYOJkMuMJjCRnV9
+            02cHiQgMqbZv2SfpZDyoQqN6ZbN2ud6MEDs/l1Dd83PeSIijwxfytMHBdca2DEOzq+LiucMw44eCcyKw3qPhk9G7ZPjh8LPhk+GD4ROC3CmyJREVe5FGMA1ip8YKzK3daq1W39lZX1lv
+            rLeu7e7Um1fXa/VMHPQix1hSKniPFmI7K/No0YcHmqvOdlVXjdQnez1yibggmqkpA7M7SeeX6nt+jpPkwmxOEEWwQMx5K8TFqYPob8z/4+t/PwebdA6Xbm57zzHbe+6wMteE5b3PzPYC
+            gr04/a9cPFM5I+t/5Wn85zvz/4ClpO5rJNbjsnzqlH6AYpMEeh1biKjxcewuJz3fAV1L627b2p5mgzqpORHIQ107KngWDxTUH7RBmpCOoToOEbiNu176tn4Iix9xcEXvkD3dVA2yA/aQ
+            uU+2m/W1HYzoQsV3oea7h5XdPerQWWZLHact4YLgJSutzd1ac2sHkYvLCDk3R77+3f8ej7TerDXqgFVa5kj/5/FYpJ1/vFJtIlLZQ/rtB2ORWs316uYlWlZlmSE9HYvUKAH4/DIX3IDU
+            KI3FaSLOgoDTHI/TKAPOolhOeXw5iHNGLGc8TqMCOGfFcirjy0Gcc2I543GubOOQFpd9nK/v/mosEmj4m4hW8hno7m/Gt6i+1kKkcoD0b+ObtH7pMsWqeAx099djGPxKq7UF7Lp1ZZMi
+            zvMJAbj1Y9BpyI5lnpDVgWrsaKajUeWsqR6Ry+urBOYmek4dAnoPdwwsecg7/zSA+X3h3KJSzc+Qmm05zoVzZ5QV/KHbHQMenVVq8Ktl66CO4+9zyhvwu1G6UCoWlWvwtYlfS8pP8W4Z
+            vpaVRglv4/eK0izl01r25nWyWl+rXmm0dqHO0MDVOk7iwE3rSZbCT+rX8Oku74qVGX9wi0s414ky/MPo3eHTPLLLmbH4tQC/tITTHvAfg2L7n6DefkxpnB1LoxrQKC+hFCAKaMNPhh8N
+            v6IUFsdSeCOgUEEKTymFP45uD/9IKZwbS+FaQGF+iVCBAQMzFu2nAdrCEmkytNJYtEZpxkNbhNLKFK08Fq0ZoJ2B0hhaZSzaTr1Rr7VmEO0slFahaOO7ZKdVbQIWop2D0hhaymiubldX
+            QWTMBCKmhCzFRUYyCgoMv10l5CIuMJJRUFwEKMg0XFwkozBh4aEgl4CwoMGFlEWRLagwuXiXbFY3QvMqJ0wZMsumfj43IzyXpwTCUIkgA4k8DyBMnoRABKYGEE+SSEDAtwo1Jt8dPhzd
+            onbl8MPR/eHT4RMJrhkPN7ozuivTKzO44Weju9CCxykUkyCjNCsc8isweB8w25fSG/1SphgHh9RCcF9/cvf//eV/keHT0XujOwQLHX4FoL+UYd4Lwzwd3RrdlmHuSDC8WmCjS1D/94MI
+            FFTq/uhuLjs3rW/uXgJOimOn4UMgjfTe83oQO+DB8CNCeehTWqsHo39ZIisD14WlaEWs3cTYNejjD0f3sEugix/Cf1/BQABHfEUbBmQ+Gj4e3RvdZfTQZYGE5LGfuNTqc2G/8VzY154L
+            +6ffS381Ss+F3nxG9B3N0EAnmiMrYBQ9IwkwJl0RdXV2W+2SK/3ovVXryIzebWh7MfhNfb/nTjDhdi5vNVu7jepKvREV37kZKqXpx28/YB9P8QO7HWUl/V6m3+nfRoV+p39heWMfv2Ef
+            /8Y+fh2qnGytRaxB0le4BUk6eaF6tuYObJN0ChjMDyMp1M4DDZNhFjZwrdturl+ttur5ZR44j+kbVISB3uUjVGeDcmfoA70bU35f6eSxCuumq+R6R7s58ioAzkRVzjf17vW0og8xY8JJ
+            Lpt9duCZWAtavNbVXSVf6A8itaDgND3jRBlbuK3R4uO7O9LFhXoXE6oJ5kcLtVj2MfbgoULrzkxmnZyXjAy48+qreaJF6h3bedcFylqGFmHBwOnd9e7KSVyHhjsyY23fknyk+h5RAnZB
+            yqBSX+C0OYPoQb1vnhIREQqhk3TM1uUrGysNnw4zbpcnJ9GUSDQFEvz2bGn8jNiAHtegMyefEwdq32dHgM4wA5LLYp8sRWbcLBDL5RgTTQSohfMdTwWZubRoU5DBlqNAK5ZlaKqp5Ny2
+            B0djk/k41ssyedqMINGd1sBuWxMNeqQyXbk2qUOfUNyMXyPNTBn3uKIBYaIGX7aMbuqCE2lnDzBgZcNQUSb5LhUwact4Ydla5a1mg27NGgAjZWkWk8SD7m7HBOWCzOepJ5FHbsk8Qec/
+            6VAzzSEKqAgz6NmYQdcE/nmaJ45FWAwVepN0sNqnM/RKpI5cTJtjJ3pQ2Q3V7RUO1GOl5H3XTaU0P0Op5LP02J5hqbTP3kgSPkfsoyfWCm8cHMHU9isAUD1x/lOyXW1PFt/QdBDevmc5
+            jxBABUi9QoqFM4sCuIa7J0I41LEcQjo7Bok5lkNIi2OQPMfy2Aqyx6WF4h7MPiTwd2QhD7Cl8sLechLHrWHnKLn+sT9ngUymQbo28SD1/EECzni+QeqxPihONEgMaf7sRIOUraTIIDG0
+            ykLCIC36gzQ3wSCdZB0kNrHVQ23bcuKGifX2sfflJGWWRxnkWLof1Okk8xJPwXb0ruYc6f2IcjjBJJ9JZyqhKdK6HSO95qMQsWtMBCronyLABJMz1En0oc9LaWRKAZmzETKlgAzwcRqZ
+            ckBmMUKmnLk2lbRGVQIywOkhMnG8AItZ1TBgGevYlgMsYesd1zghW2trpH3i5ZzjGta3McfB3Ccl0ma+gs361XqT3Ye1r0wGJqyBDqzFatvQuqdT1YoNLK9uhhnNyaJgHOxqJmVxZwJN
+            KqnASRUOsfCJtA5agVZpkhYzZXfXLXkFOijcSuQ1L1K5RBR6q8xvNfEWM4zymatUfpYqlb0qzZayFrQT0/dM+h2PL9Bh5cG/HJdux2g+HWPri7z1LBy9hDL8WOwoHnFewrpmreyqZqgn
+            z9AxXc3weqaYaTmgpSX0jFvin2V+m/92vN8V9gmFJrBusgQV+ThejEa4zy0lA/n84JYTgcQxROHrlDKBooB1slFFIepUEkGFwcEuSxWOGXaRZM3/Sc8CTE8JSs//qSyU50P53+X5cnGa
+            //1DzP+JTXV8JTENKPpk31b7Pb3jpD3q2uoRLr+FS7baxSTeVX4jgmLF0YG6H4ISaBd2+NkmEYiBqxuFVd3pg3zcwE0VnYT8pFfib0u9IGd68nSmENaR3gXxKpDD+cKq8Uo49yl9phGQ
+            sJrZdUjsw7dipPQYeroJcGZHWx4TVSDVWgv3qK3WV65cwmSrWI4prK5c2r1ayS3HLhcGfBqar6x0VENv2yqOERCkWlAofsB2urCjQ2xydLAsPb0KY0Haqo2f8hNW8Q21fx536gDuDAW+
+            SHD4QNsgJmBeVp0eglz0BGYKtlSRQkM9sQbutmqrB85F0qef44h6jXZ61pHQ4BliWJ0bWjehA/gIaK5XlYtcV+0K5eHjhEZImGhwtKjX1KttQzeh7DE0DIvGlIA53Q0Pkd4rzV8f23HN
+            gUlV6YvERTdgxr6/DBMHGJb0fHD6W2lYeExBgSo4usl+KagPURp/v3Wo2TZMfU7RcrWOCz1F9RTL5BwP88Gk9xVR33AGSDgOSPAc8KkClXJ7uhM8ODqAW4rEI3nUwnZOHFc74CQVthvE
+            y1IX6Lr2SchNLMi3bdvCWYun47R6tqZ2t23dsmECKzFArcvNenUVg2JbTcyIv9K8VN9s7a6u72w3qtdE1zFMPrfTI0r9uKPRPa5E3zctW0MvcOBXblkw6GAX39BaIHcUbDWG+355hwwf
+            juifW8OvRvdHt0nGVP9C8TSoN4xso755qXV5l8Yq8wWcFyETxB9PT5DwgYwKXCV6i2h+S5Lo0F189qDvKhQ0lYe86WuZXlxG8b4Q7TDsU2AxHHiArMoT6ZT8DMGUO+822y4j8Vdq9Kda
+            +wl5+22SCHB5a6MOABIfJQJf3Wpc2ahjwmMaSQ5FMxyzUt7eer3eDIc9uJ3BJVwQv5A6Dd1eYuZvQQr1Md6jUbhl2X+j9tcRE9AvMjtKpCGGuRgJDHQs0fiYT2adais0kIPShv1UxAUv
+            j/Nvm+lKGB3kX3ETuZIXK4Saev3YtVUlB0pLzovWBnd19PlAHYRbtAXo88BP8QGwS44yjVCCA6v/im2p3Q7MIUXPC82g/BOsqX6IEE0jAQxd/xYxLRe7T7Nx/oPAOYHegWXpqKeZ5PKV
+            Vebnt3ChsWz0itBVSirqtLeUAQudZs/jYqmU5wVG4d16ZTsMzCYcXdwKGGKwlVBcDC9hDYsHujkZ42EyseYSlmbRR/3L7dnWYL9HXAu+agT3ChJTxa2+xgk2yLQ4tBcwUW0Nc2RZfCTs
+            Zr6ISYTkxz9G9jyPqbv4/TRTGaiaDOuYA32jsMGffOKwYs6DpR4CPpVhEHBmx40Zk1BNra+pLgvh5MlFoQjGUSIWKgTQNehLZateoTOwbdzJrR9oG7ph6E54pLAgxJjlqgUmU0BDymW5
+            GJpvTF16wKWuPtu1QIhrs5RTCNs3JdckIHYBaxQt9LTHZWq3C52XT5oonD9qPa1zw3Mubm02riER7Rg3P+noZuS+QnQ1DpxQZfwgscM2CzjIBBX4jIaG/dqJ4itwMjLh5UBlkWt0MzwA
+            njh0SyEpKrjtPBro4UiCKvtQy7HVUwCVylngY4WHKqBM+OXPXc7VAAm1BeHgQZXjoUr5PIWLFIcXFneeeDOIlpWP6zk6WQYm80TF1V2YTVHujQqOm6cibCOPC4tq+0tKXJ1ctc+m9QyZ
+            L8ZUydONic0XHu+GktTCeE0G2p2I4VU+0u24DEKnejIcvsaL8JRGVRYS+tkX1oW+5bjUDal5y+9CMQXp5qlsd29GSTDzAhdPBaNGdtzaIVXHjqnLzSAIJ482DfBjA2IHWlyUUKYwWR6t
+            wKDfBRuH0oovOJWHFhayLHUhGSa0KPNC7PGKrR1Yh5qih5si8S3v9yRYLNgmp4G/B4aRhyFggDXVMPCQDkex8yGJ+wwiM11iIm+PEYjYL3oi64vDy9sZR2/HI4du8wQmn5xU6cWRKseR
+            upnCUti3McUw9kbJPskkSWH+U2OF9M1TyRrRTdllQkWiWJhom0GDVuhpZ/zIpcLO6k921zdbqHfMe3qAbJGJHaA79YM+mN6RBm6rbo/0uRjHH+E29gvYdS1LKe/BQOyFnnZ1p4/2OD8t
+            RkEq/PuqBoqlTk30Aq06ejwinYtiB5Qk60YiLnsq3FH6wKeUv6LU6IlwaLDirGV/QzUO91QwQMn1Jm3eQWlNk427GzS3Lppz58IYL4lTIE6LdT3FOF5jokkKb14nxydQSEdDWwhRQg3N
+            PrLHJ28Wr5NXyY0ZIPlm6XoEztBNCQ7+lfY4MP0ewmg/x6guFIsRIXTj1VeT8lZvMPU+zIftFE6Im3a+BhaJNLLQX4LSKUlOmQGc8nicUhinMh6nHMLpakYCEouiRpVi7DbEgtVpIbzE
+            pMlCxIOeQB06H9EcnFLM+umUk6DLcdCVJOhKCDpeIseqIlKlUSfBMG5EfZIrK2lbIIZnLzLMMsUUM/uKLJaZ2pgkapUwtTKjRl4h5UY+ki0bx7VIhwsVFos+cLIvGrgMurIFHko/SxUx
+            qeJFFi1RsfJcy8azCxfonhCpzFLC6xDeF9HE4+RACzGwm7jnBJha1jVxkADAVzS5moAt42W+ZfQLxyBmF3AFhu8n7LtgSsgRQdJFrz51g7CDUhyFJknIUOJwxZQp682ydHnDtx6BYQ8w
+            Ruj2tvVjmH30d0/DTT/sRp7XO43ctYnJnQqZU3KSB5sa1v6+oV0eZFWjYLKWmYvLC74WOqqJ8Vu0XKHbHE8oxqla3BjFh8j4tNhQoiOCCPdjqmxre2C/9OLq7NMPO9liSqO+VrmwdCni
+            AycVGm5xEAmUdd1wQFDy7pz0MbCQ3PmLEWXutZQ5VWhd267vVre3G+u1KrUGt4Boo3otQmVpLJXty1ub9eefTD6BBmhLqs3KwShvELL0bzNeCsoEKPTTX7JVPOdK4Z+FWn2zVW/uQsta
+            0MxGFGEbRCGMBE0rPwv6BH4IUOE0BNLe9xTZ0BORU9r7SLpmGZat0L8FWIvbSrmyMEMWZ8gZKGjhXD4GwTY1uwl0B45SPrsXAeAyu4wb4ZAqSERHY8XkflSZX62cO5fLR9uIexr3bWtg
+            dpX2vtjPGNmjkXSXN8q7Ee5dl8YgMQ6Y++b9f/2UhvcOKyQXByI2W6rgYr1+ZuWMVEGGBIy9p3Y0xftS8PaLrWw1VuOKwNPclBI1pfyHfAMoDOeKa/LmsHvhxjCQoEWvYtQylwjACpM0
+            dBlAbPDrl9db9VjIYBASO6hYPjtfkzsowPcZFUYfmJR+xAJumTUQiDcauuPiMajKIepLyauRuFmDrSKhxUV6istHKWIPBlJXkJYxg4PibdzocBiR4f79N2T45+FXbAPu49E9dsAAGd0a
+            3Ru9I0adacQZ9+d+NPyYDP+IYeoHgPnX4Zdk9B5u1me72N+h++GTy4wZcQGiahg13EsW3pIVIpLGFQJoBrZYPXfmTHFRYguBgM8Xi1S20I+YrqcBvXF97wEFnf/1736bSwGI6akwSFo/
+            iLBZOqJWXizLHSFSEGfIIpshUk+gNAQQJt9CUtK7z6ZRwkPe6wlPvaqIRaaotG3DU/2TgZTIWjwLjcJ/qAykpSYV1hrVS7ubW63dta3alZ3qSqM+Q6gGuGbZB6pbaDWrmzuNK7g+iu0B
+            5XifLZ1QOW8RbW1tk7f9X/SsFBnlGM+cKsr3kEB5QegLlwmnljXo9HzhhO3H3iuEH4QVNb6b5xgU2hNZ/EQCI0G+BiWp0BXuEMxECw2ZIEMk1p+sifkZ6BsWsNJCp75dhn3B+mSWUGJN
+            9egNJcGR2z3h0CcC9LU4aMGZn6WKG6DMJVXRGzE0wfKcHKskCPfucUJVvTENYV1jWCcJWEcHBeZqwEHgmhtMmhkkN9YjnRq3uxm/0giSMcNC6OvbPIlh+VTmjISx2QjhhYyX9RrBFe3X
+            ZHSHrUPEW7LY8vb70V1+FkywrMHK9fnwy+HH+Rzo4t/FejjpGhU07UflhcVKfYVWNG7h8j25G2q/UDdd+yScpqmZgEtzNQv4GrcTMCaV2KDCBO4CzeTJWEpcGAQYGw94x5hTKNUlak8p
+            E4lckJpZ4FtbV2qXET6fWPLSZLI+2kjWBVdVYwCWClNj+j01GDm63wqKKRbOLezFdFLcRJZoomMln2mKimt27BwVjPK8mGnpL7UxEoTnAqM4VW2hMP9clB7ILRzit3LI78PPCD8OZfhw
+            dB8PoxrdI/xklOHnAHGbzhl+SIp/FtWLOC1F8Dr5letYBqubN39miK/u4NdzlUqlXqVfiwvnFhfPsa/MXgh9nV+bX6wvhL9WKvOlhWf+elN2RXRMV9wjmWowoE0tjn7c2QlAL/bIhOA0
+            Q5ogqMvsFVivh2PMV6p+HPqSmLKCfASJDJGms8qQgiUaA5DVsA1Q4v0X4Th5xCvRyeCUoFOPehF6al9TwqCFrauSf8Qb6zbSjkh8ZNhoD3Zi3R6lswuew8LWukq7k/d+7mPanHijjaIE
+            fudj6828HxUPOHlkBIdHJ9x345aNSTVyvEpFtMjxz7ekl/NlakLVnGMFut5zeKEjVE+SqF6biGrM6D2zjZBuJ7xYW8EPPPDMqfhszRdtXfgWRlYDwzcystgYL9jOiLBfVlMjwmFZrY0k
+            RcU9jNFOnrHF8cnLsZ414bSElP2TwWzBzmLxqaSqPndqY4iwoFPF9hHTw73EOvcwnNfAZJr3XEK/mRyk8bW7ULjkdIZ4SWiCJQVMEk23VLON7sahVfHUST+oCD3FKu4poPiZX866myZQ
+            T5FcKKuFCR3f7DlEhdqJGj2sdnJFDrNXIfjGiom03stMF+/Hb42RttKsag6w90nslir/mRgpjYm4Cdurgv75Dl+FN33/Q8r+b/EVPZO+ACJ9//d8pVyshN//MD99/8MPc/93v/89bvc2
+            NbdwxdZ/ANvAJ9nQLU4dYfs2vyG/3sI3Zw39UFtRTdBwW4fyDtk1ENCaFxa3juWH7ChFzLMszuD+arozzjsLMrwV+Uj/Z9XubrC9isLa6cFVQVtxV3XVsPaR1qqxH7s72d+N1tQ6GlTb
+            JvaxF2EKP5IWiKR9mRxYPFDE26EXl0yn86NLpE1zs6V81g1PnpELXIf+BZka28QXt2ch8EjIGHSD32wpAcPfrSgjeVsAY/F6dPczei6hNkxLjNthEF7lw44t4NaPEmy4es8dTut8J7
+            Cte7PA8vPYZ8JG7VRKwZLCJUT36egHkQSrgUz5x/k2JfjyYECjz74x9zDj9PzsSNKX0opryG2gT8HKh28do8g6JuHN01NJr48JgMPx1+Obo3/JjgOSy8dzAijse3oEv/LjmbS1DeA4Ib
+            oJviZlJhN/Wj0a3hX4iCVKFzgFj+9M/Mn5l+SCDw298a3Sej+8PHuN+aHv7OwgCfcXf/8CE7PX7pZ+Y37//ql7SeY3p6gjhMWvJ+WOT4NkaCqPGuMeZR7EkRkw8pU575GHR1B98lp2RX
+            nuVBjKjx0d5Ai6WlthWQyKH+HbexnrECMBk7cP2+/9KCIKzz0eju8BP4+ghf3PF3kW31ja3NS/Ku+uTUfTmLUlh5kjrTm8KlxH3XEovhXswlYGzKoKN3oVmPKU8mywbM+maichxtCoXk
+            zRDLie0QE0ne/z1h02j40I+2LdHqQHNwBhP+ZgSCbzmAcfgTfxpOto4rIDFtYW21XpyX03puphhX4bMrarYGIlxZGaD0Ju04M4uDtCUzi75dmHki19i7UXnwqrBWr7auNOu7m1u7rfVW
+            o56Yemdblpsh9w7BqOMueO2mIsIXYtLvPJwsaVGLpUppTeo/D1tMfsHk7xLN+4hNceuNiRH0xKQXGih9CvMR2BVY4R6VuNFDLYYf8TeLPADRf5soeMhFPhdHlMUJzuzFPUtseExGX2+i
+            uEIvNaQgdabnBupJwXRRHqR3X9KU+9dPg7UL35FCmCDwVjG/T+kqh6+agBX2IfYrXc/ouxf4mxcejd6BoXgHEXns+hYMzxN8+UKhUMiNqQsbgMreGLDUrK0Q/NiODSOICUq48YF9pmab
+            UuyVTDmnHDQcgglNpfl6ZSWUIyriCQmopfm9BLDUNNRSceXc2ZKcrRbqBzEflZMVoCXJkZAylQijzJYwQSqU0kTPz7T3ce8zS/MNZfmGKyhRlOPM0mQR8RKFqGv1M8hQnqbXxmW17ZpK
+            rgTr0NfvfigetMNlDz1sh0ZnebA4hkzZI1P2yQw/H/6VkfFf1RJ6pYkYX46hWVMNPGqVE6bqMNQGMGkA/WPv9UaPUT/5BTmLCSf34N7d0f9k4WyeDSJm5JUy5umgo8b17GZFOKjF32rA
+            jbzwW4FbrfXNSzv5TCoY7edfoRzPeKJRPpviJSU/tMsZm/wiNlpE1eDMHblR3axeqnt7Ana3682N9R2sxgy5Yutsyis57kJaQiUpcjROXK5NfM8zQe8vqMO/gIS/J2Q0MbvmS+ArWAAA
+            +GE4mekOY8APYfF4gq/DyqoPZ7NscCjGWCm+AzvFBMlIoiBsvMl4UkACP+O0/AQNxECEKGPESh4X6Xu4Do/+5fRk/fiC52hC8hCXQomTiNZiDUbgdWp21jzrESN6Ih2QykE6keh5kR6U
+            kx6wWiStCwCavByobSfDeoBgos5QpOtWUV63/PwhF6ccyyD65v1/vx02GKkcvi0Ka5qM9B8feGMPd0GLfTK6h/e/ef8/fkHwB74yj1CZ/lfin60u5gLF5fJUxmbyHEdTefgS47b56sLa
+            86Z+HReOUr18rrISdqu47WQe4LY3nswcxsJu9YepHftGFXkoAUHiP8tzcArO2FiDyOcV63gmg9KC+uBeXjrty60x5zolgzTzckQU21jMRw4zW6MHI5E96UgzdnOcGJPOPVvOtumvUsF4
+            7T6OgO37em18E0Dwvq5mvVZfB9zd+hvbW81WfTW8ty+eQMp287R5LvCe55QSktMlf5QcNJ/IFSWjBo4h6HLBe+7vwKUsIm+dTfItlrgncSmkXwkTmjoAc1F6vmsxMLp848q3ufh6+mj0
+            Li6icU5EugYsoQdyvBOxeD1ajU1tnx6bxreZ5IZ/AKJ/hTphOqXSnSFH+ajGk+ZEzOJIfBHOxJvRtoCIwWXZ8GVM92+k6tFTNb0Z5Gn0IGm5182d8fxvPU06zt4DTd031PYtfjfubppR
+            3U7ZStRO224VsZWzGMlp1jE2PAqabBCHLNlsJmwGC7bIdvjI288kG7YyQ/j/4fpIhGS7lSUJtWP5QVJQOsCpSjwzSHBGBi3GmNQtaIS9erghl31+v2O/uBd+nr4Zl+VN58NN+zYYJuLy
+            iHg8FqnHYzFcmbHcYiynbnmnOlb0DRgsCA03l0WtiWctwXRGdUY6PGGng3KPemkdz88Y3AvzlMysVhY2BKisjBg6XZO9oCOszcpO8mKGGgii1D7wXCjBqkhosOdxYI7dG/4Fd/WMbrE8
+            /jMLC7JPRqTX8+lRnzX15Tym+gKNtzwQvawfDr+gCv3HzNdTWTxXLYXp2gfJLgpJDQjeq8haKyqlkVRDuzcJ1ctHmWgWfS3bPkh51gunkwM/+A+LiafQCVZNjPaT/KbH8VsXwikBY48t
+            jqLL0wDPmEG5DYWd9sJnrwUjTLdjBXZU1IEw0VaK0HaKnKw7Cn76IFa9lK5DYpTw1bTzJHMsFo7zAiOinrfxDovS4c9H3P1I38WcWhgPG44r75v3f/1BhJD0OnPhFcDPto8k014Stv8h
+            SNONGz/5wAw7o0CSnLu9fV+MPKSO4vveBkK/zxN8zjF+YoGUH8Nmrj1qlCQ4mn1NGE/dXQFDu+Opnd6dpFZ02gI3+hu6cqmQ4uBcqzcaW68ngtPite6YY2CTsEHmMfxaTzX3NV/2KWDi
+            dno3qCUUyqaRSTOwuHHHYUsUq9kt0RiLlAfiwizApvgnuFTRNYZP/PGTm+SWcsmFrrsaqCBJFNJNxoSEpIgMRQrJ2wZEf0ps6r3n+IwfBtXI6NYPW4t6N2HjdAaL8TldFvF5LRMzTZRx
+            uOOBOxay8oec2sS9Frn0MgN3x1O65tyjUQG6efMJxohHd4afeJLnIQ0dQL3+MPwcnSgeM3/GHKQ07QZjzR/JYecv4Mn94SMh2nx6TKWe2fmR1ZvwIr0GsTwekxAWy/a24BDv7cegSRCq
+            kQ7RaaeufO24c51FTa6THEEQX7DK3q0X1tl8Dci0XC2DDoRgwprzCTDMfb4lX/SnowfvIQaxPOF5C4UqzhGmqhCmxCAmnzWf0fXyrse1nw6/HH5YIH5sUiL+oxJy85+GD9A3+AQE8kMC
+            swd5Xgk2OcPckvc455E2S4P6mHjs/wAUKBDoS7mUdiamFdRWVhfqpchGfxE3QbnxQDyTn8fm5TBHeKAR6TmPjg7Uc8egOU5OVg07KR7xQhQX4ZU6wijTd/4Zkvs/XZ2pXatuTqjMhE7O
+            xtJepEITJe8rNckzngqEZFtFN/esjNZKxrcjYKszvSAhfjCyHXRL247Hlo4/35aClhC0kgm0HFupPUvgMSFPmOeDjLGWXHpAsf/qh9codBiDvshpt1FdqTcAo4w5mblcPsHEAtvKS6/0
+            AhzcZPPOmQ0lfUrUnVI6de8U2iw1dcrjaFWy06pwWmPGIItNGEwBxIybBNzWolsfPUvr0+EXIOa/iBwAEytL0AI7U6tU66txgkzrJqqz+GJW/qqNJCHh117rPu+SneJ3EySyl9b2gs6H
+            4BFwaZZ4XflnWK7v4fKMCVSfwv0m7kB1SUNT9wdaECanwbNcDF/lSgUSnMkTirJ7OvOHoBI8pg8xXofpGOghZMb0LVzOb1Nl9j+5EiGq2uxQIHYkEJSg0AUfFnh8pjRB75FzL2meOaq7
+            970Wgp4A6ohSzQdpA+zwE+UN7xZotO8OnxJlJV9IaGS54DmDbnsm459QsWE//oRfvoBC71Al/T1s/rtLCaTg39e/+D2RA5q0pR9xl+ZTfo4StOST0XvQtM/IPBEPRrrrm68A+Q7QENSj
+            4f8IqUd4QzoBBm6IB8DkqdAiVOH7zDMigqrBwy8xeur9wCziO0EOBr3lPaNO3+HjQsaWK5Mk8/GB5l1EGQQbco/roI/CvMce0mOlBO4J+invZ2N5XMafYY50gBBWNcNIwXPsZymLS2EH
+            UeVZ9JsCf4484405Znf92SPzFWX/O6dzL+wQl8pe5NCRZKeb53uX0yFFDY71ZYJ0COxbOTNScmBP4lJ43vOr45wo9I3SfpW5ojHZOSEvMHtukgy6+BNJkzc3jduS82cQBV+KEiUst7lY
+            HCsFJkipu5nIjbaRYht18rG7e5zDAMIS8TEy5z1xDlMSboJ137OavsfIcJlHhdmnGErs65iOzZR9px89nCpW4w/nFvhUyqlUyiG7AV9DHyXipFYlahYkVcYpZ6dTSqNTyU6nHG1WwGpG
+            24g1KEhpCbVgAdItjSMQIJfZgYjcjcHc0Kjm4EqQjxAupxAWo1JAjVGM1M0pTUqiHCExcS0qY1smvbEj1Skr+l65oErU+ikwq1w00WnbcnTJbxnsRPSWtTEOzPDpN0xeiAzllpDTdjSD
+            bnFDtz8rFdP2ZmJlvltOxqDBeTDOZktgeqUCzpJSPHknrUIw5yatrlPJWN1UQKxu7M5zL0xRiqwWYz3PdGFNywoLDiAAxuUJQPg2lLHHxAvHw+Mv7zyiZb7SevR9AYSyhx4jOMBjHPmJ
+            BKZlSgdtBdBeRgi7EU0HcdzzrLYXiQE/vCCGbasn9OHF8IuWWVEIS1+Ok5udRVviMbXrZmdFPayGygY9D4pmDVcNQ0G0mUR3iZihS7Nwql217/JDzGiV+A2oFZsX3rESzYLB1j5Hx5M4
+            dh3W3F142u9aR+auDiwyQ2udj5TC2Ah5B/rUc1nQdsIn3nqVIM/BN3wBcjGa6eP0x5/3I70HexWqpHjvu54hSS/Efq7XWk/8puqEV+h622S9arMqa4ex2d/P+Drq4HAFRp2eqjDha6mj
+            wxIE7LLtFZ7wLKbnCR6xDfUDMyZzO9u2+unxTtNrek2v6TW9ptf0ml7Ta3pNr+k1vabX9Jpe02t6Ta/pNb2m1/SaXtNrek2v6TW9ptf0ml7Ta3pNr+k1vabXM1z/H7Hy+A4A8AAA
+          " | tr -d ' \n\r\t' | base64 -d | tar -xz
           gradle assembleDebug --no-daemon
-
       - uses: actions/upload-artifact@v4
         with:
-          name: DualSense-PS5-Pro-v2-APK
+          name: PS5-Pro-v3-FIXED-APK
           path: app/build/outputs/apk/debug/app-debug.apk
