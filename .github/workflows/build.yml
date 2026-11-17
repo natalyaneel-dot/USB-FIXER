@@ -15,7 +15,7 @@ jobs:
         with:
           gradle-version: '8.4'
 
-      - name: Generate Pure Android USB Fixer and Build APK
+      - name: Generate Pro USB Recovery Studio and Build APK
         run: |
           rm -rf app build.gradle* settings.gradle* gradle.properties
           mkdir -p app/src/main/java/com/example/usbfixer app/src/main/res/xml
@@ -60,8 +60,8 @@ jobs:
                   applicationId "com.example.usbfixer"
                   minSdk 21
                   targetSdk 33
-                  versionCode 1
-                  versionName "1.0"
+                  versionCode 2
+                  versionName "2.0-Pro"
               }
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_1_8
@@ -86,9 +86,9 @@ jobs:
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
               <application
-                  android:label="مصلح الفلاشة USB Fixer"
+                  android:label="استوديو إنقاذ الفلاشة Pro"
                   android:supportsRtl="true"
-                  android:theme="@android:style/Theme.DeviceDefault.Light.DarkActionBar">
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                   <activity
                       android:name=".MainActivity"
                       android:exported="true">
@@ -114,39 +114,81 @@ jobs:
           import android.app.*;
           import android.content.*;
           import android.content.pm.PackageManager;
-          import android.graphics.Color;
+          import android.graphics.*;
+          import android.graphics.drawable.GradientDrawable;
           import android.hardware.usb.*;
+          import android.media.MediaMetadataRetriever;
+          import android.net.Uri;
           import android.os.*;
+          import android.util.LruCache;
           import android.view.*;
           import android.widget.*;
           import java.io.*;
           import java.nio.*;
           import java.nio.charset.StandardCharsets;
           import java.util.*;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
 
           public class MainActivity extends Activity {
               private static final String ACTION_USB = "com.example.usbfixer.USB_PERMISSION";
-              private TextView statusText;
-              private LinearLayout filesBox;
+
+              private TextView statusText, pathText, sizeLabel;
+              private GridView gridView;
               private ProgressBar bar;
+              private SeekBar zoomBar;
+
               private UsbManager usbMgr;
               private UsbDevice curDev;
               private UsbDeviceConnection conn;
               private UsbInterface usbIf;
               private UsbEndpoint epIn, epOut;
-              private int tag = 1, fsType = 0, spc = 8;
+
+              private int tag = 1, fsType = 0, spc = 8, pendingMode = 0;
               private long partLba = 0, fatLba = 0, dataLba = 0, rootClus = 2;
+              private volatile boolean stopScan = false;
+
               private final List<Long> dirStack = new ArrayList<>();
+              private final List<String> pathNames = new ArrayList<>();
+              private List<Entry> currentList = new ArrayList<>();
+              private List<Entry> displayedList = new ArrayList<>();
+              private int currentFilter = 0;
+
+              private MediaAdapter adapter;
+              private LruCache<String, Bitmap> thumbCache;
+              private final ExecutorService thumbPool = Executors.newFixedThreadPool(2);
+              private int numCols = 2;
+              private int thumbHeightPx = 380;
 
               static class Entry {
-                  String name; boolean isDir, noChain; long clus, size;
+                  String name;
+                  boolean isDir, noChain, isDeleted, isHidden;
+                  long clus, size;
+                  String detectedExt = "";
+
+                  String getEffectiveName() {
+                      if (!detectedExt.isEmpty() && !name.toLowerCase(Locale.ROOT).endsWith(detectedExt)) {
+                          return name + detectedExt;
+                      }
+                      return name;
+                  }
+
+                  boolean isImage() {
+                      String n = getEffectiveName().toLowerCase(Locale.ROOT);
+                      return n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".png") || n.endsWith(".webp") || n.endsWith(".bmp") || n.endsWith(".gif");
+                  }
+
+                  boolean isVideo() {
+                      String n = getEffectiveName().toLowerCase(Locale.ROOT);
+                      return n.endsWith(".mp4") || n.endsWith(".mkv") || n.endsWith(".3gp") || n.endsWith(".avi") || n.endsWith(".mov");
+                  }
               }
 
               private final BroadcastReceiver receiver = new BroadcastReceiver() {
                   @Override public void onReceive(Context c, Intent i) {
                       if (ACTION_USB.equals(i.getAction())) {
                           if (i.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false) && curDev != null)
-                              fixAndRead(curDev);
+                              executeMode(curDev, pendingMode);
                           else statusText.setText("تم رفض صلاحية الوصول للفلاشة.");
                       }
                   }
@@ -154,7 +196,16 @@ jobs:
 
               @Override protected void onCreate(Bundle b) {
                   super.onCreate(b);
+                  requestWindowFeature(Window.FEATURE_NO_TITLE);
                   usbMgr = (UsbManager) getSystemService(Context.USB_SERVICE);
+
+                  int maxMem = (int) (Runtime.getRuntime().maxMemory() / 1024);
+                  thumbCache = new LruCache<String, Bitmap>(maxMem / 5) {
+                      @Override protected int sizeOf(String k, Bitmap v) {
+                          return v.getByteCount() / 1024;
+                      }
+                  };
+
                   if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT <= 29) {
                       if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                           requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 101);
@@ -163,58 +214,173 @@ jobs:
 
                   LinearLayout root = new LinearLayout(this);
                   root.setOrientation(LinearLayout.VERTICAL);
-                  root.setPadding(32, 32, 32, 32);
-                  root.setBackgroundColor(Color.parseColor("#F8FAFC"));
+                  root.setBackgroundColor(Color.parseColor("#0F172A"));
+                  root.setPadding(20, 24, 20, 16);
 
                   TextView title = new TextView(this);
-                  title.setText("مصلح الفلاشة وقارئ الملفات بدون فورمات");
-                  title.setTextSize(18f);
-                  title.setTextColor(Color.parseColor("#0F172A"));
+                  title.setText("استوديو إنقاذ وإصلاح الفلاشات الاحترافي");
+                  title.setTextSize(17f);
+                  title.setTextColor(Color.parseColor("#38BDF8"));
+                  title.setTypeface(Typeface.DEFAULT_BOLD);
                   title.setGravity(Gravity.CENTER);
-                  title.setPadding(0, 0, 0, 20);
+                  title.setPadding(0, 0, 0, 14);
+                  root.addView(title);
 
-                  LinearLayout row = new LinearLayout(this);
-                  row.setGravity(Gravity.CENTER);
-                  Button scanBtn = new Button(this);
-                  scanBtn.setText("إصلاح الإقلاع وفتح الفلاشة");
-                  scanBtn.setBackgroundColor(Color.parseColor("#2563EB"));
-                  scanBtn.setTextColor(Color.WHITE);
+                  LinearLayout actionsRow1 = new LinearLayout(this);
+                  actionsRow1.setOrientation(LinearLayout.HORIZONTAL);
+                  Button btnFix = makeActionButton("إصلاح الإقلاع وفتح", "#2563EB");
+                  Button btnUnhide = makeActionButton("إظهار المخفي والفيروس", "#059669");
+                  actionsRow1.addView(btnFix);
+                  actionsRow1.addView(btnUnhide);
+                  root.addView(actionsRow1);
 
-                  Button upBtn = new Button(this);
-                  upBtn.setText("رجوع");
-                  upBtn.setOnClickListener(v -> {
-                      if (dirStack.size() > 1) {
-                          dirStack.remove(dirStack.size() - 1);
-                          loadDir(dirStack.get(dirStack.size() - 1));
+                  LinearLayout actionsRow2 = new LinearLayout(this);
+                  actionsRow2.setOrientation(LinearLayout.HORIZONTAL);
+                  Button btnDeleted = makeActionButton("استعادة المحذوف و CHK", "#D97706");
+                  Button btnDeep = makeActionButton("فحص عميق للقطاعات", "#7C3AED");
+                  actionsRow2.addView(btnDeleted);
+                  actionsRow2.addView(btnDeep);
+                  root.addView(actionsRow2);
+
+                  LinearLayout navRow = new LinearLayout(this);
+                  navRow.setOrientation(LinearLayout.HORIZONTAL);
+                  navRow.setGravity(Gravity.CENTER_VERTICAL);
+                  navRow.setPadding(0, 10, 0, 6);
+
+                  Button btnUp = makeSmallBtn("رجوع", "#334155");
+                  Button btnAll = makeSmallBtn("الكل", "#1E293B");
+                  Button btnMedia = makeSmallBtn("صور وفيديو فقط", "#1E293B");
+                  Button btnSaveAll = makeSmallBtn("حفظ الكل", "#0284C7");
+
+                  navRow.addView(btnUp);
+                  navRow.addView(btnAll);
+                  navRow.addView(btnMedia);
+                  navRow.addView(btnSaveAll);
+                  root.addView(navRow);
+
+                  LinearLayout zoomRow = new LinearLayout(this);
+                  zoomRow.setOrientation(LinearLayout.HORIZONTAL);
+                  zoomRow.setGravity(Gravity.CENTER_VERTICAL);
+                  zoomRow.setPadding(8, 4, 8, 8);
+
+                  sizeLabel = new TextView(this);
+                  sizeLabel.setText("حجم المصغرات (2 أعمدة):");
+                  sizeLabel.setTextColor(Color.parseColor("#CBD5E1"));
+                  sizeLabel.setTextSize(12f);
+
+                  zoomBar = new SeekBar(this);
+                  zoomBar.setMax(3);
+                  zoomBar.setProgress(2);
+                  zoomBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                      @Override public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
+                          numCols = 4 - p;
+                          if (numCols < 1) numCols = 1;
+                          int screenW = getResources().getDisplayMetrics().widthPixels - 60;
+                          thumbHeightPx = (int) ((screenW / numCols) * 0.85f);
+                          sizeLabel.setText("حجم المصغرات (" + numCols + " أعمدة):");
+                          gridView.setNumColumns(numCols);
+                          adapter.notifyDataSetChanged();
                       }
+                      @Override public void onStartTrackingTouch(SeekBar s) {}
+                      @Override public void onStopTrackingTouch(SeekBar s) {}
                   });
-                  row.addView(scanBtn); row.addView(upBtn);
+
+                  zoomRow.addView(sizeLabel);
+                  zoomRow.addView(zoomBar, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                  root.addView(zoomRow);
 
                   bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
                   bar.setIndeterminate(true);
                   bar.setVisibility(View.GONE);
+                  root.addView(bar);
+
+                  pathText = new TextView(this);
+                  pathText.setText("المسار: /");
+                  pathText.setTextColor(Color.parseColor("#94A3B8"));
+                  pathText.setTextSize(12f);
+                  pathText.setPadding(8, 2, 8, 2);
+                  root.addView(pathText);
 
                   statusText = new TextView(this);
-                  statusText.setText("قم بتوصيل الفلاشة عبر OTG ثم اضغط على زر الإصلاح.");
-                  statusText.setTextSize(15f);
-                  statusText.setPadding(12, 20, 12, 20);
+                  statusText.setText("قم بتوصيل الفلاشة عبر OTG ثم اختر إحدى خدمات الإصلاح أو الفحص العميق أعلاه.");
+                  statusText.setTextSize(13f);
+                  statusText.setTextColor(Color.parseColor("#E2E8F0"));
+                  statusText.setPadding(8, 6, 8, 10);
+                  root.addView(statusText);
 
-                  ScrollView sv = new ScrollView(this);
-                  filesBox = new LinearLayout(this);
-                  filesBox.setOrientation(LinearLayout.VERTICAL);
-                  sv.addView(filesBox);
+                  gridView = new GridView(this);
+                  gridView.setNumColumns(numCols);
+                  gridView.setHorizontalSpacing(14);
+                  gridView.setVerticalSpacing(14);
+                  gridView.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
+                  adapter = new MediaAdapter();
+                  gridView.setAdapter(adapter);
+                  root.addView(gridView, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-                  root.addView(title); root.addView(row); root.addView(bar); root.addView(statusText); root.addView(sv);
                   setContentView(root);
+
+                  int screenW = getResources().getDisplayMetrics().widthPixels - 60;
+                  thumbHeightPx = (int) ((screenW / numCols) * 0.85f);
 
                   IntentFilter f = new IntentFilter(ACTION_USB);
                   if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, f, Context.RECEIVER_EXPORTED);
                   else registerReceiver(receiver, f);
 
-                  scanBtn.setOnClickListener(v -> connectUsb());
+                  btnFix.setOnClickListener(v -> { stopScan = true; connectUsb(0); });
+                  btnUnhide.setOnClickListener(v -> { stopScan = true; connectUsb(1); });
+                  btnDeleted.setOnClickListener(v -> { stopScan = true; connectUsb(2); });
+                  btnDeep.setOnClickListener(v -> { stopScan = true; connectUsb(3); });
+
+                  btnUp.setOnClickListener(v -> {
+                      stopScan = true;
+                      if (dirStack.size() > 1) {
+                          dirStack.remove(dirStack.size() - 1);
+                          pathNames.remove(pathNames.size() - 1);
+                          loadDir(dirStack.get(dirStack.size() - 1));
+                      }
+                  });
+
+                  btnAll.setOnClickListener(v -> { currentFilter = 0; applyFilter(); });
+                  btnMedia.setOnClickListener(v -> { currentFilter = 1; applyFilter(); });
+                  btnSaveAll.setOnClickListener(v -> saveAllDisplayed());
               }
 
-              private void connectUsb() {
+              private Button makeActionButton(String text, String bgHex) {
+                  Button b = new Button(this);
+                  b.setText(text);
+                  b.setTextColor(Color.WHITE);
+                  b.setTextSize(12f);
+                  b.setAllCaps(false);
+                  GradientDrawable gd = new GradientDrawable();
+                  gd.setColor(Color.parseColor(bgHex));
+                  gd.setCornerRadius(18f);
+                  b.setBackground(gd);
+                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                  lp.setMargins(6, 6, 6, 6);
+                  b.setLayoutParams(lp);
+                  b.setPadding(10, 18, 10, 18);
+                  return b;
+              }
+
+              private Button makeSmallBtn(String text, String bgHex) {
+                  Button b = new Button(this);
+                  b.setText(text);
+                  b.setTextColor(Color.WHITE);
+                  b.setTextSize(11f);
+                  b.setAllCaps(false);
+                  GradientDrawable gd = new GradientDrawable();
+                  gd.setColor(Color.parseColor(bgHex));
+                  gd.setCornerRadius(14f);
+                  b.setBackground(gd);
+                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                  lp.setMargins(4, 2, 4, 2);
+                  b.setLayoutParams(lp);
+                  b.setPadding(18, 10, 18, 10);
+                  return b;
+              }
+
+              private void connectUsb(int mode) {
+                  pendingMode = mode;
                   HashMap<String, UsbDevice> map = usbMgr.getDeviceList();
                   if (map == null || map.isEmpty()) {
                       statusText.setText("لم يتم العثور على فلاشة متصلة! تأكد من وصلة OTG.");
@@ -225,13 +391,21 @@ jobs:
                       Intent in = new Intent(ACTION_USB).setPackage(getPackageName());
                       int fl = Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0;
                       usbMgr.requestPermission(curDev, PendingIntent.getBroadcast(this, 0, in, fl));
-                  } else fixAndRead(curDev);
+                  } else {
+                      executeMode(curDev, pendingMode);
+                  }
+              }
+
+              private void executeMode(UsbDevice dev, int mode) {
+                  if (mode == 0) fixAndRead(dev);
+                  else if (mode == 1) unhideAndCleanVirus(dev);
+                  else if (mode == 2) scanDeletedAndChk(dev);
+                  else if (mode == 3) deepCarveRawSectors(dev);
               }
 
               private void fixAndRead(UsbDevice dev) {
                   bar.setVisibility(View.VISIBLE);
-                  statusText.setText("جاري فحص وإصلاح قطاع الإقلاع...");
-                  filesBox.removeAllViews();
+                  statusText.setText("جاري فحص وإصلاح قطاع الإقلاع وجدول الملفات...");
                   new Thread(() -> {
                       try {
                           if (!openMassStorage(dev)) throw new Exception("تعذر فتح قناة USB مع الفلاشة.");
@@ -240,12 +414,14 @@ jobs:
                               runOnUiThread(() -> { bar.setVisibility(View.GONE); statusText.setText(msg); });
                               return;
                           }
-                          dirStack.clear(); dirStack.add(rootClus);
-                          List<Entry> list = readDir(rootClus, false);
+                          dirStack.clear(); pathNames.clear();
+                          dirStack.add(rootClus); pathNames.add("الرئيسية");
+                          List<Entry> list = readDir(rootClus, false, false);
                           runOnUiThread(() -> {
                               bar.setVisibility(View.GONE);
-                              statusText.setText(msg + "\nاضغط على أي مجلد لفتحه، أو على أي ملف لحفظه في الهاتف:");
-                              render(list);
+                              statusText.setText(msg + " (تم العثور على " + list.size() + " عنصر)");
+                              updatePathLabel();
+                              setEntries(list);
                           });
                       } catch (Exception e) {
                           runOnUiThread(() -> { bar.setVisibility(View.GONE); statusText.setText("خطأ: " + e.getMessage()); });
@@ -253,67 +429,559 @@ jobs:
                   }).start();
               }
 
-              private void loadDir(long clus) {
+              private void unhideAndCleanVirus(UsbDevice dev) {
                   bar.setVisibility(View.VISIBLE);
+                  statusText.setText("جاري إزالة إخفاء النظام والفيروسات (+H +S) عن جميع المجلدات والملفات...");
                   new Thread(() -> {
                       try {
-                          List<Entry> list = readDir(clus, false);
-                          runOnUiThread(() -> { bar.setVisibility(View.GONE); render(list); });
+                          if (!openMassStorage(dev)) throw new Exception("تعذر الاتصال بالفلاشة.");
+                          repairBoot();
+                          if (fsType == 0) throw new Exception("نظام الملفات غير معروف، استخدم الفحص العميق.");
+
+                          int fixedCount = unhideClusterChain(rootClus);
+                          List<Entry> list = readDir(rootClus, false, false);
+                          for (Entry e : list) {
+                              if (e.isDir && e.clus >= 2) {
+                                  fixedCount += unhideClusterChain(e.clus);
+                              }
+                          }
+                          final int totalFixed = fixedCount;
+                          final List<Entry> refreshed = readDir(rootClus, false, false);
+                          runOnUiThread(() -> {
+                              bar.setVisibility(View.GONE);
+                              statusText.setText("تم تحرير وإظهار " + totalFixed + " ملف/مجلد مخفي على الفلاشة بنجاح!");
+                              setEntries(refreshed);
+                          });
+                      } catch (Exception e) {
+                          runOnUiThread(() -> { bar.setVisibility(View.GONE); statusText.setText("خطأ: " + e.getMessage()); });
+                      }
+                  }).start();
+              }
+
+              private int unhideClusterChain(long startClus) throws Exception {
+                  int fixed = 0;
+                  long clus = startClus;
+                  int cnt = 0;
+                  while (clus >= 2 && clus < 0x0FFFFFF7L && cnt++ < 32) {
+                      long lba = dataLba + (clus - 2) * spc;
+                      byte[] d = readSec(lba, spc);
+                      boolean modified = false;
+                      if (fsType == 1) {
+                          for (int i = 0; i < d.length; i += 32) {
+                              int b0 = d[i] & 0xFF;
+                              if (b0 == 0) break;
+                              if (b0 == 0xE5) continue;
+                              int attr = d[i + 11] & 0xFF;
+                              if (attr == 0x0F || (attr & 0x08) != 0) continue;
+                              if ((attr & 0x06) != 0) {
+                                  d[i + 11] = (byte) (attr & ~0x06);
+                                  modified = true;
+                                  fixed++;
+                              }
+                              String sName = new String(d, i, 8, StandardCharsets.US_ASCII);
+                              if (sName.trim().isEmpty() && (attr & 0x10) != 0) {
+                                  byte[] newName = "RECOVERD".getBytes(StandardCharsets.US_ASCII);
+                                  System.arraycopy(newName, 0, d, i, 8);
+                                  modified = true;
+                                  fixed++;
+                              }
+                          }
+                      } else if (fsType == 2) {
+                          for (int i = 0; i < d.length; i += 32) {
+                              int t = d[i] & 0xFF;
+                              if (t == 0) break;
+                              if (t == 0x85) {
+                                  int attr = u16(d, i + 4);
+                                  if ((attr & 0x06) != 0) {
+                                      int cleanAttr = attr & ~0x06;
+                                      d[i + 4] = (byte) (cleanAttr & 0xFF);
+                                      d[i + 5] = (byte) ((cleanAttr >> 8) & 0xFF);
+                                      modified = true;
+                                      fixed++;
+                                  }
+                              }
+                          }
+                      }
+                      if (modified) {
+                          for (int s = 0; s < spc; s++) {
+                              byte[] sec = new byte[512];
+                              System.arraycopy(d, s * 512, sec, 0, 512);
+                              writeSec(lba + s, sec);
+                          }
+                      }
+                      clus = nextClus(clus);
+                  }
+                  return fixed;
+              }
+
+              private void scanDeletedAndChk(UsbDevice dev) {
+                  bar.setVisibility(View.VISIBLE);
+                  statusText.setText("جاري البحث عن الملفات المحذوفة وفك ملفات FOUND.000 المخفية...");
+                  new Thread(() -> {
+                      try {
+                          if (!openMassStorage(dev)) throw new Exception("تعذر الاتصال بالفلاشة.");
+                          repairBoot();
+                          if (fsType == 0) throw new Exception("نظام الملفات غير معروف، استخدم زر الفحص العميق.");
+
+                          List<Entry> recovered = new ArrayList<>();
+                          List<Entry> rootAll = readDir(rootClus, false, true);
+                          for (Entry e : rootAll) {
+                              if (e.isDeleted && !e.isDir && e.size > 0) {
+                                  inspectMagicHeader(e);
+                                  recovered.add(e);
+                              } else if (e.isDir && e.clus >= 2) {
+                                  String up = e.name.toUpperCase(Locale.ROOT);
+                                  boolean isFoundDir = up.startsWith("FOUND.") || up.contains("TRASH") || up.contains("RECYCLE") || e.name.startsWith("مجلد_مخفي");
+                                  List<Entry> sub = readDir(e.clus, false, true);
+                                  for (Entry se : sub) {
+                                      if (!se.isDir && se.size > 0 && (se.isDeleted || isFoundDir || se.name.toUpperCase(Locale.ROOT).endsWith(".CHK"))) {
+                                          inspectMagicHeader(se);
+                                          recovered.add(se);
+                                      }
+                                  }
+                              }
+                          }
+
+                          runOnUiThread(() -> {
+                              bar.setVisibility(View.GONE);
+                              pathText.setText("المسار: المحذوفات وملفات النظام المستردة (CHK)");
+                              statusText.setText("تم العثور على " + recovered.size() + " ملف محذوف أو مفقود قابل للاستعادة والمعاينة!");
+                              setEntries(recovered);
+                          });
+                      } catch (Exception e) {
+                          runOnUiThread(() -> { bar.setVisibility(View.GONE); statusText.setText("خطأ: " + e.getMessage()); });
+                      }
+                  }).start();
+              }
+
+              private void deepCarveRawSectors(UsbDevice dev) {
+                  bar.setVisibility(View.VISIBLE);
+                  stopScan = false;
+                  statusText.setText("جاري الفحص العميق للقطاعات الخام بحثاً عن الصور والفيديوهات المفقودة...");
+                  new Thread(() -> {
+                      try {
+                          if (!openMassStorage(dev)) throw new Exception("تعذر الاتصال بالفلاشة.");
+                          repairBoot();
+                          if (dataLba <= 0) dataLba = 2048;
+                          if (spc <= 0) spc = 8;
+
+                          final List<Entry> carved = new ArrayList<>();
+                          int maxClustersToScan = 15000;
+
+                          for (int c = 2; c < maxClustersToScan && !stopScan; c++) {
+                              long lba = dataLba + (long) (c - 2) * spc;
+                              byte[] hdr = readSec(lba, 1);
+                              String ext = detectSignature(hdr);
+                              if (!ext.isEmpty()) {
+                                  Entry e = new Entry();
+                                  e.clus = c;
+                                  e.noChain = true;
+                                  e.isDeleted = true;
+                                  e.detectedExt = ext;
+                                  e.name = "مستخرج_عميق_" + c + ext;
+                                  if (ext.equals(".jpg")) e.size = 3 * 1024 * 1024L;
+                                  else if (ext.equals(".png")) e.size = 2 * 1024 * 1024L;
+                                  else if (ext.equals(".mp4")) e.size = 15 * 1024 * 1024L;
+                                  else e.size = 2 * 1024 * 1024L;
+
+                                  carved.add(e);
+                                  final int foundSoFar = carved.size();
+                                  final int curC = c;
+                                  runOnUiThread(() -> {
+                                      statusText.setText("فحص عميق للكلاستر " + curC + " ... تم اكتشاف " + foundSoFar + " ملفات حتى الآن");
+                                      setEntries(new ArrayList<>(carved));
+                                  });
+                              } else if (c % 300 == 0) {
+                                  final int curC = c;
+                                  final int foundSoFar = carved.size();
+                                  runOnUiThread(() -> statusText.setText("جاري فحص الكلاستر الخام " + curC + " / " + maxClustersToScan + " (المكتشف: " + foundSoFar + ")"));
+                              }
+                          }
+
+                          runOnUiThread(() -> {
+                              bar.setVisibility(View.GONE);
+                              pathText.setText("المسار: نتائج الفحص العميق للقطاعات الخام");
+                              statusText.setText("اكتمل الفحص العميق! تم استخراج " + carved.size() + " ملف من القطاعات الخام.");
+                              setEntries(carved);
+                          });
+                      } catch (Exception e) {
+                          runOnUiThread(() -> { bar.setVisibility(View.GONE); statusText.setText("توقف الفحص العميق: " + e.getMessage()); });
+                      }
+                  }).start();
+              }
+
+              private void inspectMagicHeader(Entry e) {
+                  if (e.clus < 2) return;
+                  try {
+                      long lba = dataLba + (e.clus - 2) * spc;
+                      byte[] hdr = readSec(lba, 1);
+                      String ext = detectSignature(hdr);
+                      if (!ext.isEmpty()) e.detectedExt = ext;
+                  } catch (Exception ignored) {}
+              }
+
+              private String detectSignature(byte[] b) {
+                  if (b == null || b.length < 16) return "";
+                  int b0 = b[0] & 0xFF, b1 = b[1] & 0xFF, b2 = b[2] & 0xFF, b3 = b[3] & 0xFF;
+                  if (b0 == 0xFF && b1 == 0xD8 && b2 == 0xFF) return ".jpg";
+                  if (b0 == 0x89 && b1 == 0x50 && b2 == 0x4E && b3 == 0x47) return ".png";
+                  if (b0 == 0x47 && b1 == 0x49 && b2 == 0x46 && b3 == 0x38) return ".gif";
+                  if ((b[4] & 0xFF) == 'f' && (b[5] & 0xFF) == 't' && (b[6] & 0xFF) == 'y' && (b[7] & 0xFF) == 'p') return ".mp4";
+                  if (b0 == 0x25 && b1 == 0x50 && b2 == 0x44 && b3 == 0x46) return ".pdf";
+                  if (b0 == 0x50 && b1 == 0x4B && b2 == 0x03 && b3 == 0x04) return ".zip";
+                  if ((b0 == 0x49 && b1 == 0x44 && b2 == 0x33) || (b0 == 0xFF && (b1 & 0xE0) == 0xE0)) return ".mp3";
+                  return "";
+              }
+
+              private void loadDir(long clus) {
+                  bar.setVisibility(View.VISIBLE);
+                  updatePathLabel();
+                  new Thread(() -> {
+                      try {
+                          List<Entry> list = readDir(clus, false, false);
+                          for (Entry e : list) {
+                              if (!e.isDir && e.name.toUpperCase(Locale.ROOT).endsWith(".CHK")) {
+                                  inspectMagicHeader(e);
+                              }
+                          }
+                          runOnUiThread(() -> {
+                              bar.setVisibility(View.GONE);
+                              setEntries(list);
+                          });
                       } catch (Exception e) {
                           runOnUiThread(() -> bar.setVisibility(View.GONE));
                       }
                   }).start();
               }
 
-              private void render(List<Entry> list) {
-                  filesBox.removeAllViews();
-                  if (list.isEmpty()) {
-                      TextView tv = new TextView(this); tv.setText("(المجلد فارغ)"); filesBox.addView(tv); return;
+              private void updatePathLabel() {
+                  StringBuilder sb = new StringBuilder("المسار: ");
+                  for (String p : pathNames) sb.append(p).append(" / ");
+                  pathText.setText(sb.toString());
+              }
+
+              private void setEntries(List<Entry> list) {
+                  currentList = list;
+                  applyFilter();
+              }
+
+              private void applyFilter() {
+                  displayedList = new ArrayList<>();
+                  for (Entry e : currentList) {
+                      if (currentFilter == 0) displayedList.add(e);
+                      else if (currentFilter == 1 && (e.isDir || e.isImage() || e.isVideo())) displayedList.add(e);
                   }
-                  for (Entry e : list) {
-                      Button b = new Button(this);
-                      b.setText((e.isDir ? "[مجلد] " : "[حفظ ملف] ") + e.name + (e.isDir ? "" : " (" + (e.size / 1024) + " KB)"));
-                      b.setAllCaps(false);
-                      b.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-                      b.setOnClickListener(v -> {
-                          if (e.isDir) { dirStack.add(e.clus); loadDir(e.clus); }
-                          else saveFile(e);
+                  adapter.notifyDataSetChanged();
+              }
+
+              class MediaAdapter extends BaseAdapter {
+                  @Override public int getCount() { return displayedList.size(); }
+                  @Override public Object getItem(int pos) { return displayedList.get(pos); }
+                  @Override public long getItemId(int pos) { return pos; }
+
+                  @Override public View getView(int pos, View convertView, ViewGroup parent) {
+                      final Entry e = displayedList.get(pos);
+
+                      LinearLayout card = new LinearLayout(MainActivity.this);
+                      card.setOrientation(LinearLayout.VERTICAL);
+                      card.setPadding(10, 10, 10, 12);
+                      GradientDrawable gd = new GradientDrawable();
+                      gd.setColor(Color.parseColor("#1E293B"));
+                      gd.setCornerRadius(20f);
+                      gd.setStroke(2, e.isDeleted ? Color.parseColor("#F59E0B") : Color.parseColor("#334155"));
+                      card.setBackground(gd);
+
+                      final ImageView img = new ImageView(MainActivity.this);
+                      img.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, thumbHeightPx));
+                      img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                      img.setBackgroundColor(Color.parseColor("#0F172A"));
+
+                      String cacheKey = e.clus + "_" + e.getEffectiveName();
+                      img.setTag(cacheKey);
+
+                      if (e.isDir) {
+                          img.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+                          img.setImageBitmap(drawBadgeBitmap("مجلد", "#2563EB", e.name));
+                      } else if (e.isImage() || e.isVideo()) {
+                          Bitmap cached = thumbCache.get(cacheKey);
+                          if (cached != null) {
+                              img.setImageBitmap(cached);
+                          } else {
+                              img.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+                              img.setImageBitmap(drawBadgeBitmap(e.isVideo() ? "فيديو" : "صورة", "#334155", "جاري التحميل..."));
+                              loadThumbnailAsync(e, cacheKey, img);
+                          }
+                      } else {
+                          img.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+                          img.setImageBitmap(drawBadgeBitmap("ملف", "#475569", e.detectedExt.isEmpty() ? "عام" : e.detectedExt));
+                      }
+
+                      TextView nameTv = new TextView(MainActivity.this);
+                      String badge = e.isDeleted ? "[مسترد] " : (e.isHidden ? "[مخفي] " : "");
+                      nameTv.setText(badge + e.getEffectiveName());
+                      nameTv.setTextColor(Color.WHITE);
+                      nameTv.setTextSize(12f);
+                      nameTv.setSingleLine(true);
+                      nameTv.setPadding(6, 8, 6, 2);
+
+                      TextView infoTv = new TextView(MainActivity.this);
+                      String sz = e.isDir ? "اضغط للفتح" : ((e.size / 1024) + " KB • معاينة/حفظ");
+                      infoTv.setText(sz);
+                      infoTv.setTextColor(Color.parseColor("#94A3B8"));
+                      infoTv.setTextSize(11f);
+                      infoTv.setPadding(6, 0, 6, 4);
+
+                      card.addView(img);
+                      card.addView(nameTv);
+                      card.addView(infoTv);
+
+                      card.setOnClickListener(v -> {
+                          if (e.isDir) {
+                              dirStack.add(e.clus);
+                              pathNames.add(e.name);
+                              loadDir(e.clus);
+                          } else if (e.isImage()) {
+                              previewImageDialog(e);
+                          } else if (e.isVideo()) {
+                              playVideoDialog(e);
+                          } else {
+                              saveFile(e);
+                          }
                       });
-                      filesBox.addView(b);
+
+                      return card;
                   }
+              }
+
+              private Bitmap drawBadgeBitmap(String mainText, String bgHex, String sub) {
+                  Bitmap bmp = Bitmap.createBitmap(240, 180, Bitmap.Config.ARGB_8888);
+                  Canvas c = new Canvas(bmp);
+                  c.drawColor(Color.parseColor(bgHex));
+                  Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+                  p.setColor(Color.WHITE);
+                  p.setTextSize(34f);
+                  p.setTypeface(Typeface.DEFAULT_BOLD);
+                  p.setTextAlign(Paint.Align.CENTER);
+                  c.drawText(mainText, 120, 85, p);
+                  p.setTypeface(Typeface.DEFAULT);
+                  p.setTextSize(20f);
+                  if (sub.length() > 16) sub = sub.substring(0, 16);
+                  c.drawText(sub, 120, 135, p);
+                  return bmp;
+              }
+
+              private void loadThumbnailAsync(final Entry e, final String key, final ImageView targetIv) {
+                  thumbPool.submit(() -> {
+                      try {
+                          if (e.clus < 2) return;
+                          Bitmap bmp = null;
+                          if (e.isImage()) {
+                              int maxBytes = (int) Math.min(e.size > 0 ? e.size : 524288, 786432);
+                              byte[] raw = readFileBytes(e, maxBytes);
+                              BitmapFactory.Options opts = new BitmapFactory.Options();
+                              opts.inJustDecodeBounds = true;
+                              BitmapFactory.decodeByteArray(raw, 0, raw.length, opts);
+                              int sample = 1;
+                              while (opts.outWidth / sample > 360 || opts.outHeight / sample > 360) sample *= 2;
+                              opts.inJustDecodeBounds = false;
+                              opts.inSampleSize = sample;
+                              bmp = BitmapFactory.decodeByteArray(raw, 0, raw.length, opts);
+                          } else if (e.isVideo()) {
+                              int maxBytes = (int) Math.min(e.size > 0 ? e.size : 1572864, 1572864);
+                              byte[] raw = readFileBytes(e, maxBytes);
+                              File tmp = new File(getCacheDir(), "thumb_" + e.clus + ".mp4");
+                              try (FileOutputStream fos = new FileOutputStream(tmp)) { fos.write(raw); }
+                              MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+                              try {
+                                  mmr.setDataSource(tmp.getAbsolutePath());
+                                  Bitmap frame = mmr.getFrameAtTime(0);
+                                  if (frame != null) {
+                                      bmp = Bitmap.createScaledBitmap(frame, 320, 240, true).copy(Bitmap.Config.ARGB_8888, true);
+                                      Canvas cv = new Canvas(bmp);
+                                      Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+                                      p.setColor(Color.argb(160, 0, 0, 0));
+                                      cv.drawCircle(160, 120, 42, p);
+                                      p.setColor(Color.WHITE);
+                                      p.setTextSize(36f);
+                                      p.setTextAlign(Paint.Align.CENTER);
+                                      cv.drawText("▶", 164, 133, p);
+                                  }
+                              } finally {
+                                  try { mmr.release(); } catch (Exception ignored) {}
+                                  tmp.delete();
+                              }
+                          }
+                          if (bmp != null) {
+                              thumbCache.put(key, bmp);
+                              final Bitmap finalBmp = bmp;
+                              runOnUiThread(() -> {
+                                  if (key.equals(targetIv.getTag())) {
+                                      targetIv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                                      targetIv.setImageBitmap(finalBmp);
+                                  }
+                              });
+                          }
+                      } catch (Exception ignored) {}
+                  });
+              }
+
+              private byte[] readFileBytes(Entry e, int maxBytes) throws Exception {
+                  ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                  long rem = maxBytes;
+                  long c = e.clus;
+                  while (rem > 0 && c >= 2 && c < 0x0FFFFFF7L) {
+                      byte[] d = readSec(dataLba + (c - 2) * spc, spc);
+                      int w = (int) Math.min(rem, d.length);
+                      bos.write(d, 0, w);
+                      rem -= w;
+                      if (rem > 0) c = (e.noChain || e.isDeleted) ? c + 1 : nextClus(c);
+                  }
+                  return bos.toByteArray();
+              }
+
+              private void previewImageDialog(final Entry e) {
+                  bar.setVisibility(View.VISIBLE);
+                  statusText.setText("جاري فتح الصورة بدقة كاملة: " + e.getEffectiveName());
+                  new Thread(() -> {
+                      try {
+                          int maxRead = (int) Math.min(e.size > 0 ? e.size : 4194304, 8388608);
+                          byte[] raw = readFileBytes(e, maxRead);
+                          BitmapFactory.Options opts = new BitmapFactory.Options();
+                          opts.inSampleSize = raw.length > 3145728 ? 2 : 1;
+                          final Bitmap fullBmp = BitmapFactory.decodeByteArray(raw, 0, raw.length, opts);
+                          runOnUiThread(() -> {
+                              bar.setVisibility(View.GONE);
+                              if (fullBmp == null) {
+                                  saveFile(e);
+                                  return;
+                              }
+                              Dialog dlg = new Dialog(MainActivity.this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+                              LinearLayout box = new LinearLayout(MainActivity.this);
+                              box.setOrientation(LinearLayout.VERTICAL);
+                              box.setBackgroundColor(Color.BLACK);
+                              box.setPadding(20, 20, 20, 20);
+
+                              ImageView iv = new ImageView(MainActivity.this);
+                              iv.setImageBitmap(fullBmp);
+                              iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                              box.addView(iv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+                              LinearLayout btns = new LinearLayout(MainActivity.this);
+                              btns.setGravity(Gravity.CENTER);
+                              Button saveB = makeActionButton("حفظ الصورة في الهاتف", "#2563EB");
+                              Button closeB = makeActionButton("إغلاق", "#475569");
+                              saveB.setOnClickListener(v -> { dlg.dismiss(); saveFile(e); });
+                              closeB.setOnClickListener(v -> dlg.dismiss());
+                              btns.addView(saveB); btns.addView(closeB);
+                              box.addView(btns);
+
+                              dlg.setContentView(box);
+                              dlg.show();
+                          });
+                      } catch (Exception ex) {
+                          runOnUiThread(() -> { bar.setVisibility(View.GONE); saveFile(e); });
+                      }
+                  }).start();
+              }
+
+              private void playVideoDialog(final Entry e) {
+                  bar.setVisibility(View.VISIBLE);
+                  statusText.setText("جاري تجهيز الفيديو للتشغيل المباشر: " + e.getEffectiveName());
+                  new Thread(() -> {
+                      try {
+                          final File out = writeEntryToDisk(e);
+                          runOnUiThread(() -> {
+                              bar.setVisibility(View.GONE);
+                              statusText.setText("تم حفظ وتشغيل الفيديو: " + out.getAbsolutePath());
+                              Dialog dlg = new Dialog(MainActivity.this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+                              LinearLayout box = new LinearLayout(MainActivity.this);
+                              box.setOrientation(LinearLayout.VERTICAL);
+                              box.setBackgroundColor(Color.BLACK);
+                              box.setGravity(Gravity.CENTER);
+
+                              VideoView vv = new VideoView(MainActivity.this);
+                              vv.setVideoURI(Uri.fromFile(out));
+                              MediaController mc = new MediaController(MainActivity.this);
+                              vv.setMediaController(mc);
+                              box.addView(vv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+                              LinearLayout row = new LinearLayout(MainActivity.this);
+                              Button closeB = makeActionButton("إغلاق المشغل (تم حفظ الفيديو في هاتفك)", "#059669");
+                              closeB.setOnClickListener(v -> { vv.stopPlayback(); dlg.dismiss(); });
+                              row.addView(closeB);
+                              box.addView(row);
+
+                              dlg.setContentView(box);
+                              dlg.show();
+                              vv.start();
+                          });
+                      } catch (Exception ex) {
+                          runOnUiThread(() -> { bar.setVisibility(View.GONE); statusText.setText("تعذر تشغيل الفيديو: " + ex.getMessage()); });
+                      }
+                  }).start();
               }
 
               private void saveFile(Entry e) {
                   bar.setVisibility(View.VISIBLE);
-                  statusText.setText("جاري نسخ الملف: " + e.name);
+                  statusText.setText("جاري نسخ وإنقاذ الملف: " + e.getEffectiveName());
                   new Thread(() -> {
                       try {
-                          File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "USB_Recovered_Files");
-                          if (!dir.exists() && !dir.mkdirs()) {
-                              dir = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "USB_Recovered_Files");
-                              dir.mkdirs();
-                          }
-                          File out = new File(dir, e.name);
-                          try (FileOutputStream fos = new FileOutputStream(out)) {
-                              long rem = e.size, c = e.clus;
-                              while (rem > 0 && c >= 2 && c < 0x0FFFFFF7L) {
-                                  byte[] d = readSec(dataLba + (c - 2) * spc, spc);
-                                  int w = (int) Math.min(rem, d.length);
-                                  fos.write(d, 0, w);
-                                  rem -= w;
-                                  if (rem > 0) c = e.noChain ? c + 1 : nextClus(c);
-                              }
-                          }
-                          final String savedPath = out.getAbsolutePath();
+                          File out = writeEntryToDisk(e);
                           runOnUiThread(() -> {
                               bar.setVisibility(View.GONE);
-                              statusText.setText("تم الحفظ بنجاح في:\n" + savedPath);
-                              Toast.makeText(this, "تم الحفظ بنجاح!", Toast.LENGTH_LONG).show();
+                              statusText.setText("تم الحفظ بنجاح في:\n" + out.getAbsolutePath());
+                              Toast.makeText(this, "تم حفظ الملف بنجاح!", Toast.LENGTH_LONG).show();
                           });
                       } catch (Exception ex) {
                           runOnUiThread(() -> { bar.setVisibility(View.GONE); statusText.setText("فشل النسخ: " + ex.getMessage()); });
                       }
                   }).start();
+              }
+
+              private void saveAllDisplayed() {
+                  if (displayedList.isEmpty()) return;
+                  bar.setVisibility(View.VISIBLE);
+                  statusText.setText("جاري حفظ جميع الملفات المعروضة إلى الهاتف...");
+                  new Thread(() -> {
+                      int saved = 0;
+                      for (Entry e : displayedList) {
+                          if (!e.isDir && e.clus >= 2) {
+                              try {
+                                  writeEntryToDisk(e);
+                                  saved++;
+                                  final int s = saved;
+                                  runOnUiThread(() -> statusText.setText("تم إنقاذ وحفظ " + s + " ملفات..."));
+                              } catch (Exception ignored) {}
+                          }
+                      }
+                      final int total = saved;
+                      runOnUiThread(() -> {
+                          bar.setVisibility(View.GONE);
+                          statusText.setText("اكتمل حفظ " + total + " ملفات داخل مجلد Downloads/USB_Recovered_Files!");
+                          Toast.makeText(this, "تم حفظ " + total + " ملفات!", Toast.LENGTH_LONG).show();
+                      });
+                  }).start();
+              }
+
+              private File writeEntryToDisk(Entry e) throws Exception {
+                  File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "USB_Recovered_Files");
+                  if (!dir.exists() && !dir.mkdirs()) {
+                      dir = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "USB_Recovered_Files");
+                      dir.mkdirs();
+                  }
+                  File out = new File(dir, e.getEffectiveName());
+                  try (FileOutputStream fos = new FileOutputStream(out)) {
+                      long rem = e.size > 0 ? e.size : 5242880;
+                      long c = e.clus;
+                      while (rem > 0 && c >= 2 && c < 0x0FFFFFF7L) {
+                          byte[] d = readSec(dataLba + (c - 2) * spc, spc);
+                          int w = (int) Math.min(rem, d.length);
+                          fos.write(d, 0, w);
+                          rem -= w;
+                          if (rem > 0) c = (e.noChain || e.isDeleted) ? c + 1 : nextClus(c);
+                      }
+                  }
+                  return out;
               }
 
               private boolean openMassStorage(UsbDevice dev) {
@@ -390,8 +1058,8 @@ jobs:
                       fsType = 2;
                       if ((vbr[0x6A] & 0x02) != 0) {
                           vbr[0x6A] = (byte) (vbr[0x6A] & 0xFD); writeSec(partLba, vbr);
-                          sb.append("تم إصلاح إقلاع exFAT بنجاح!");
-                      } else sb.append("تم فتح نظام exFAT بنجاح!");
+                          sb.append("تم إصلاح إقلاع exFAT!");
+                      } else sb.append("نظام exFAT جاهز!");
                       int scale = (1 << (vbr[0x6C] & 0xFF)) / 512;
                       spc = (1 << (vbr[0x6D] & 0xFF)) * scale;
                       fatLba = partLba + u32(vbr, 0x50) * scale;
@@ -405,8 +1073,8 @@ jobs:
                       fsType = 1;
                       if ((vbr[0x41] & 0x01) != 0) {
                           vbr[0x41] = (byte) (vbr[0x41] & 0xFE); writeSec(partLba, vbr);
-                          sb.append("تم إصلاح خطأ الإقلاع (FAT32 Dirty Bit) بنجاح!");
-                      } else sb.append("تم فتح نظام FAT32 بنجاح!");
+                          sb.append("تم إصلاح خطأ الإقلاع (FAT32 Dirty Bit)!");
+                      } else sb.append("نظام FAT32 جاهز!");
                       int scale = bps / 512;
                       spc = spc0 * scale;
                       fatLba = partLba + (long) res * scale;
@@ -414,7 +1082,7 @@ jobs:
                       rootClus = u32(vbr, 0x2C);
                       return sb.toString();
                   }
-                  return "نظام الملفات غير مدعوم أو يحتاج لتقسيم.";
+                  return "النظام غير معروف، استخدم زر الفحص العميق للقطاعات لاستخراج صورك وملفاتك.";
               }
 
               private long nextClus(long c) throws Exception {
@@ -422,7 +1090,7 @@ jobs:
                   return u32(s, (int) ((c * 4) % 512)) & 0x0FFFFFFFL;
               }
 
-              private List<Entry> readDir(long clus, boolean noChain) throws Exception {
+              private List<Entry> readDir(long clus, boolean noChain, boolean includeDeleted) throws Exception {
                   List<Entry> list = new ArrayList<>();
                   StringBuilder lfn = new StringBuilder();
                   int cnt = 0;
@@ -432,15 +1100,21 @@ jobs:
                           for (int i = 0; i < d.length; i += 32) {
                               int b0 = d[i] & 0xFF;
                               if (b0 == 0) return list;
-                              if (b0 == 0xE5) { lfn.setLength(0); continue; }
+                              boolean isDel = (b0 == 0xE5);
+                              if (isDel && !includeDeleted) { lfn.setLength(0); continue; }
                               int attr = d[i + 11] & 0xFF;
                               if (attr == 0x0F) { lfn.insert(0, lfnPart(d, i)); continue; }
                               if ((attr & 0x08) != 0) { lfn.setLength(0); continue; }
-                              String name = lfn.length() > 0 ? lfn.toString().trim() : shortName(d, i);
+                              String name = lfn.length() > 0 ? lfn.toString().trim() : shortName(d, i, isDel);
                               lfn.setLength(0);
                               if (name.equals(".") || name.equals("..")) continue;
+                              if (name.trim().isEmpty()) name = "مجلد_مخفي_" + i;
                               Entry e = new Entry();
-                              e.name = name; e.isDir = (attr & 0x10) != 0;
+                              e.name = name;
+                              e.isDir = (attr & 0x10) != 0;
+                              e.isHidden = (attr & 0x06) != 0;
+                              e.isDeleted = isDel;
+                              e.noChain = isDel;
                               e.clus = (((long) u16(d, i + 20)) << 16) | u16(d, i + 26);
                               e.size = u32(d, i + 28);
                               list.add(e);
@@ -449,22 +1123,30 @@ jobs:
                           for (int i = 0; i < d.length; ) {
                               int t = d[i] & 0xFF;
                               if (t == 0) return list;
-                              if (t == 0x85 && i + 64 <= d.length) {
+                              boolean isActive = (t == 0x85);
+                              boolean isDel = (t == 0x05);
+                              if ((isActive || (isDel && includeDeleted)) && i + 64 <= d.length) {
                                   int sc = d[i + 1] & 0xFF, attr = u16(d, i + 4);
-                                  if ((d[i + 32] & 0xFF) == 0xC0) {
+                                  int stType = d[i + 32] & 0xFF;
+                                  if (stType == 0xC0 || stType == 0x40) {
                                       Entry e = new Entry();
                                       e.isDir = (attr & 0x10) != 0;
-                                      e.noChain = (d[i + 33] & 0x02) != 0;
+                                      e.isHidden = (attr & 0x06) != 0;
+                                      e.isDeleted = isDel;
+                                      e.noChain = isDel || ((d[i + 33] & 0x02) != 0);
                                       e.clus = u32(d, i + 52);
                                       e.size = u32(d, i + 56) | (u32(d, i + 60) << 32);
                                       StringBuilder nm = new StringBuilder();
-                                      for (int s = 2; s <= sc && i + s * 32 + 32 <= d.length; s++)
-                                          if ((d[i + s * 32] & 0xFF) == 0xC1)
+                                      for (int s = 2; s <= sc && i + s * 32 + 32 <= d.length; s++) {
+                                          int nt = d[i + s * 32] & 0xFF;
+                                          if (nt == 0xC1 || nt == 0x41) {
                                               for (int p = 2; p < 32; p += 2) {
                                                   int ch = u16(d, i + s * 32 + p);
                                                   if (ch == 0 || ch == 0xFFFF) break;
                                                   nm.append((char) ch);
                                               }
+                                          }
+                                      }
                                       e.name = nm.toString().trim();
                                       if (!e.name.isEmpty()) list.add(e);
                                   }
@@ -478,8 +1160,10 @@ jobs:
                   return list;
               }
 
-              private String shortName(byte[] d, int o) {
-                  String b = new String(d, o, 8, StandardCharsets.US_ASCII).trim();
+              private String shortName(byte[] d, int o, boolean isDel) {
+                  byte[] copy = Arrays.copyOfRange(d, o, o + 8);
+                  if (isDel) copy[0] = '_';
+                  String b = new String(copy, StandardCharsets.US_ASCII).trim();
                   String x = new String(d, o + 8, 3, StandardCharsets.US_ASCII).trim();
                   return x.isEmpty() ? b : b + "." + x;
               }
@@ -502,6 +1186,8 @@ jobs:
 
               @Override protected void onDestroy() {
                   super.onDestroy();
+                  stopScan = true;
+                  thumbPool.shutdownNow();
                   try { if (conn != null) { if (usbIf != null) conn.releaseInterface(usbIf); conn.close(); } } catch (Exception ignored) {}
                   try { unregisterReceiver(receiver); } catch (Exception ignored) {}
               }
@@ -512,5 +1198,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: UsbFixer-APK
+          name: UsbFixer-Pro-APK
           path: app/build/outputs/apk/debug/app-debug.apk
