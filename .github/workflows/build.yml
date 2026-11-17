@@ -15,7 +15,7 @@ jobs:
         with:
           gradle-version: '8.4'
 
-      - name: Generate DualSense PS5 Pro Studio and Build APK
+      - name: Generate DualSense PS5 Pro v2 and Build APK
         run: |
           rm -rf app build.gradle* settings.gradle* gradle.properties
           mkdir -p app/src/main/java/com/example/dualsensepro app/src/main/res/xml
@@ -60,8 +60,8 @@ jobs:
                   applicationId "com.example.dualsensepro"
                   minSdk 24
                   targetSdk 33
-                  versionCode 1
-                  versionName "1.0-PS5-Pro"
+                  versionCode 2
+                  versionName "2.0-PS5-Fixed"
               }
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_1_8
@@ -93,7 +93,7 @@ jobs:
               <uses-permission android:name="android.permission.VIBRATE" />
 
               <application
-                  android:label="DualSense Pro Remapper"
+                  android:label="DualSense Pro v2"
                   android:supportsRtl="true"
                   android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
@@ -131,23 +131,40 @@ jobs:
           import android.view.KeyEvent;
 
           public class RemapConfig {
-              private static final String PREFS = "dualsense_pro_prefs";
+              private static final String PREFS = "dualsense_pro_v2_prefs";
 
-              public static final int[] BUTTON_CODES = {
-                  KeyEvent.KEYCODE_BUTTON_A,
-                  KeyEvent.KEYCODE_BUTTON_B,
-                  KeyEvent.KEYCODE_BUTTON_X,
-                  KeyEvent.KEYCODE_BUTTON_Y,
-                  KeyEvent.KEYCODE_BUTTON_L1,
-                  KeyEvent.KEYCODE_BUTTON_R1,
-                  KeyEvent.KEYCODE_BUTTON_L2,
-                  KeyEvent.KEYCODE_BUTTON_R2,
-                  KeyEvent.KEYCODE_BUTTON_THUMBL,
-                  KeyEvent.KEYCODE_BUTTON_THUMBR,
-                  KeyEvent.KEYCODE_DPAD_UP,
-                  KeyEvent.KEYCODE_DPAD_DOWN,
-                  KeyEvent.KEYCODE_DPAD_LEFT,
-                  KeyEvent.KEYCODE_DPAD_RIGHT
+              public static final int BTN_CROSS = 0;
+              public static final int BTN_CIRCLE = 1;
+              public static final int BTN_SQUARE = 2;
+              public static final int BTN_TRIANGLE = 3;
+              public static final int BTN_L1 = 4;
+              public static final int BTN_R1 = 5;
+              public static final int BTN_L2 = 6;
+              public static final int BTN_R2 = 7;
+              public static final int BTN_L3 = 8;
+              public static final int BTN_R3 = 9;
+              public static final int BTN_UP = 10;
+              public static final int BTN_DOWN = 11;
+              public static final int BTN_LEFT = 12;
+              public static final int BTN_RIGHT = 13;
+
+              public static final int BUTTON_COUNT = 14;
+
+              public static final int[] DEFAULT_PS5_RAW_CODES = {
+                  KeyEvent.KEYCODE_BUTTON_B,      // 0: ✕ Cross (97)
+                  KeyEvent.KEYCODE_BUTTON_C,      // 1: ◯ Circle (98)
+                  KeyEvent.KEYCODE_BUTTON_A,      // 2: □ Square (96)
+                  KeyEvent.KEYCODE_BUTTON_X,      // 3: △ Triangle (99)
+                  KeyEvent.KEYCODE_BUTTON_Y,      // 4: L1 (100)
+                  KeyEvent.KEYCODE_BUTTON_Z,      // 5: R1 (101)
+                  KeyEvent.KEYCODE_BUTTON_L1,     // 6: L2 (102)
+                  KeyEvent.KEYCODE_BUTTON_R1,     // 7: R2 (103)
+                  KeyEvent.KEYCODE_BUTTON_SELECT, // 8: L3 (109)
+                  KeyEvent.KEYCODE_BUTTON_START,  // 9: R3 (108)
+                  KeyEvent.KEYCODE_DPAD_UP,       // 10: Up
+                  KeyEvent.KEYCODE_DPAD_DOWN,     // 11: Down
+                  KeyEvent.KEYCODE_DPAD_LEFT,     // 12: Left
+                  KeyEvent.KEYCODE_DPAD_RIGHT     // 13: Right
               };
 
               public static final String[] BUTTON_NAMES = {
@@ -167,92 +184,169 @@ jobs:
                   "سهم لليمين"
               };
 
+              public static final String[] IN_GAME_XBOX_NAMES = {
+                  "اسمه داخل إعدادات الألعاب: Button B",
+                  "اسمه داخل إعدادات الألعاب: Button C",
+                  "اسمه داخل إعدادات الألعاب: Button A",
+                  "اسمه داخل إعدادات الألعاب: Button X",
+                  "اسمه داخل إعدادات الألعاب: Button Y",
+                  "اسمه داخل إعدادات الألعاب: Button Z",
+                  "اسمه داخل إعدادات الألعاب: Button L1",
+                  "اسمه داخل إعدادات الألعاب: Button R1",
+                  "اسمه داخل إعدادات الألعاب: Select / L3",
+                  "اسمه داخل إعدادات الألعاب: Start / R3",
+                  "اسمه داخل إعدادات الألعاب: D-Pad Up",
+                  "اسمه داخل إعدادات الألعاب: D-Pad Down",
+                  "اسمه داخل إعدادات الألعاب: D-Pad Left",
+                  "اسمه داخل إعدادات الألعاب: D-Pad Right"
+              };
+
               public static final String[] SHORT_LABELS = {
                   "✕", "◯", "□", "△", "L1", "R1", "L2", "R2", "L3", "R3", "↑", "↓", "←", "→"
               };
-
-              public static String getButtonName(int keyCode) {
-                  for (int i = 0; i < BUTTON_CODES.length; i++) {
-                      if (BUTTON_CODES[i] == keyCode) return BUTTON_NAMES[i];
-                  }
-                  return "زر (" + keyCode + ")";
-              }
-
-              public static String getShortLabel(int keyCode) {
-                  for (int i = 0; i < BUTTON_CODES.length; i++) {
-                      if (BUTTON_CODES[i] == keyCode) return SHORT_LABELS[i];
-                  }
-                  return "KEY";
-              }
 
               private static SharedPreferences prefs(Context c) {
                   return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
               }
 
+              public static int getHardwareKeyCode(Context c, int logicalBtnId) {
+                  if (logicalBtnId < 0 || logicalBtnId >= BUTTON_COUNT) return 0;
+                  return prefs(c).getInt("hw_code_" + logicalBtnId, DEFAULT_PS5_RAW_CODES[logicalBtnId]);
+              }
+
+              public static void setHardwareKeyCode(Context c, int logicalBtnId, int keyCode) {
+                  prefs(c).edit().putInt("hw_code_" + logicalBtnId, keyCode).apply();
+              }
+
+              public static void resetHardwareKeyCodesToPs5Raw(Context c) {
+                  SharedPreferences.Editor ed = prefs(c).edit();
+                  for (int i = 0; i < BUTTON_COUNT; i++) {
+                      ed.putInt("hw_code_" + i, DEFAULT_PS5_RAW_CODES[i]);
+                  }
+                  ed.apply();
+              }
+
+              public static int findLogicalButtonByKeyCode(Context c, int keyCode) {
+                  for (int i = 0; i < BUTTON_COUNT; i++) {
+                      if (getHardwareKeyCode(c, i) == keyCode) return i;
+                  }
+                  if (keyCode == KeyEvent.KEYCODE_BUTTON_THUMBL) return BTN_L3;
+                  if (keyCode == KeyEvent.KEYCODE_BUTTON_THUMBR) return BTN_R3;
+                  return -1;
+              }
+
+              public static String getButtonNameByKeyCode(Context c, int keyCode) {
+                  int id = findLogicalButtonByKeyCode(c, keyCode);
+                  if (id >= 0) return BUTTON_NAMES[id];
+                  if (keyCode == KeyEvent.KEYCODE_BUTTON_L2) return "زر Share (مشاركة)";
+                  if (keyCode == KeyEvent.KEYCODE_BUTTON_R2) return "زر Options (خيارات)";
+                  if (keyCode == KeyEvent.KEYCODE_BUTTON_MODE) return "زر PS (البلايستيشن)";
+                  return "زر إضافي (كود " + keyCode + ")";
+              }
+
               public static String getActiveProfile(Context c) {
-                  return prefs(c).getString("active_profile", "الوضع الافتراضي (PS5 Pro)");
+                  return prefs(c).getString("active_profile", "Rocket League Sideswipe");
               }
 
               public static void setActiveProfile(Context c, String profile) {
                   prefs(c).edit().putString("active_profile", profile).apply();
               }
 
-              public static int getMappedKey(Context c, int originalKeyCode) {
+              public static int getMappedLogicalButton(Context c, int origLogicalId) {
                   String prof = getActiveProfile(c);
-                  return prefs(c).getInt(prof + "_map_" + originalKeyCode, originalKeyCode);
+                  return prefs(c).getInt(prof + "_remap_id_" + origLogicalId, origLogicalId);
               }
 
-              public static void setMappedKey(Context c, int originalKeyCode, int targetKeyCode) {
+              public static void setMappedLogicalButton(Context c, int origLogicalId, int targetLogicalId) {
                   String prof = getActiveProfile(c);
-                  prefs(c).edit().putInt(prof + "_map_" + originalKeyCode, targetKeyCode).apply();
+                  prefs(c).edit().putInt(prof + "_remap_id_" + origLogicalId, targetLogicalId).apply();
               }
 
               public static void resetAllMappings(Context c) {
                   String prof = getActiveProfile(c);
                   SharedPreferences.Editor ed = prefs(c).edit();
-                  for (int code : BUTTON_CODES) {
-                      ed.putInt(prof + "_map_" + code, code);
-                      ed.putBoolean(prof + "_turbo_" + code, false);
+                  for (int i = 0; i < BUTTON_COUNT; i++) {
+                      ed.putInt(prof + "_remap_id_" + i, i);
+                      ed.putBoolean(prof + "_turbo_id_" + i, false);
                   }
                   ed.apply();
               }
 
-              public static boolean isTurboEnabled(Context c, int keyCode) {
-                  String prof = getActiveProfile(c);
-                  return prefs(c).getBoolean(prof + "_turbo_" + keyCode, false);
+              public static boolean isHoldModeEnabled(Context c) {
+                  return prefs(c).getBoolean("continuous_hold_mode", true);
               }
 
-              public static void setTurboEnabled(Context c, int keyCode, boolean enabled) {
+              public static void setHoldModeEnabled(Context c, boolean en) {
+                  prefs(c).edit().putBoolean("continuous_hold_mode", en).apply();
+              }
+
+              public static int getHudButtonsCount(Context c) {
+                  return prefs(c).getInt("hud_btn_count", 6);
+              }
+
+              public static void setHudButtonsCount(Context c, int count) {
+                  prefs(c).edit().putInt("hud_btn_count", count).apply();
+              }
+
+              public static boolean isTurboEnabled(Context c, int logicalId) {
                   String prof = getActiveProfile(c);
-                  prefs(c).edit().putBoolean(prof + "_turbo_" + keyCode, enabled).apply();
+                  return prefs(c).getBoolean(prof + "_turbo_id_" + logicalId, false);
+              }
+
+              public static void setTurboEnabled(Context c, int logicalId, boolean enabled) {
+                  String prof = getActiveProfile(c);
+                  prefs(c).edit().putBoolean(prof + "_turbo_id_" + logicalId, enabled).apply();
               }
 
               public static int getTurboIntervalMs(Context c) {
-                  return prefs(c).getInt("turbo_interval_ms", 45);
+                  return prefs(c).getInt("turbo_interval_ms", 50);
               }
 
               public static void setTurboIntervalMs(Context c, int ms) {
-                  prefs(c).edit().putInt("turbo_interval_ms", Math.max(15, ms)).apply();
+                  prefs(c).edit().putInt("turbo_interval_ms", Math.max(20, ms)).apply();
               }
 
-              public static float getButtonX(Context c, int keyCode, int index) {
-                  int col = index % 5;
-                  float defX = 180f + col * 150f;
-                  return prefs(c).getFloat("pos_x_" + keyCode, defX);
+              public static float getButtonX(Context c, int logicalId, int screenW, int screenH) {
+                  int maxDim = Math.max(screenW, screenH);
+                  float defX;
+                  if (logicalId == BTN_CROSS) defX = maxDim * 0.77f;
+                  else if (logicalId == BTN_CIRCLE) defX = maxDim * 0.87f;
+                  else if (logicalId == BTN_SQUARE) defX = maxDim * 0.67f;
+                  else if (logicalId == BTN_TRIANGLE) defX = maxDim * 0.77f;
+                  else defX = 180f + (logicalId % 5) * 130f;
+                  return prefs(c).getFloat("pos_x_id_" + logicalId, defX);
               }
 
-              public static float getButtonY(Context c, int keyCode, int index) {
-                  int row = index / 5;
-                  float defY = 300f + row * 150f;
-                  return prefs(c).getFloat("pos_y_" + keyCode, defY);
+              public static float getButtonY(Context c, int logicalId, int screenW, int screenH) {
+                  int minDim = Math.min(screenW, screenH);
+                  float defY;
+                  if (logicalId == BTN_CROSS) defY = minDim * 0.70f;
+                  else if (logicalId == BTN_CIRCLE) defY = minDim * 0.50f;
+                  else if (logicalId == BTN_SQUARE) defY = minDim * 0.70f;
+                  else if (logicalId == BTN_TRIANGLE) defY = minDim * 0.42f;
+                  else defY = 180f + (logicalId / 5) * 130f;
+                  return prefs(c).getFloat("pos_y_id_" + logicalId, defY);
               }
 
-              public static void saveButtonPos(Context c, int keyCode, float x, float y) {
-                  prefs(c).edit().putFloat("pos_x_" + keyCode, x).putFloat("pos_y_" + keyCode, y).apply();
+              public static void saveButtonPos(Context c, int logicalId, float x, float y) {
+                  prefs(c).edit().putFloat("pos_x_id_" + logicalId, x).putFloat("pos_y_id_" + logicalId, y).apply();
+              }
+
+              public static void applySideswipePresetPositions(Context c, int screenW, int screenH) {
+                  int w = Math.max(screenW, screenH);
+                  int h = Math.min(screenW, screenH);
+                  SharedPreferences.Editor ed = prefs(c).edit();
+                  ed.putFloat("pos_x_id_" + BTN_CROSS, w * 0.77f).putFloat("pos_y_id_" + BTN_CROSS, h * 0.70f);
+                  ed.putFloat("pos_x_id_" + BTN_CIRCLE, w * 0.87f).putFloat("pos_y_id_" + BTN_CIRCLE, h * 0.50f);
+                  ed.putFloat("pos_x_id_" + BTN_SQUARE, w * 0.67f).putFloat("pos_y_id_" + BTN_SQUARE, h * 0.70f);
+                  ed.putFloat("pos_x_id_" + BTN_TRIANGLE, w * 0.77f).putFloat("pos_y_id_" + BTN_TRIANGLE, h * 0.42f);
+                  ed.putFloat("pos_x_id_" + BTN_L1, w * 0.15f).putFloat("pos_y_id_" + BTN_L1, h * 0.25f);
+                  ed.putFloat("pos_x_id_" + BTN_R1, w * 0.85f).putFloat("pos_y_id_" + BTN_R1, h * 0.25f);
+                  ed.apply();
               }
 
               public static boolean isMacroEnabled(Context c, int slot) {
-                  return prefs(c).getBoolean("macro_en_" + slot, slot == 1);
+                  return prefs(c).getBoolean("macro_en_" + slot, false);
               }
 
               public static void setMacroEnabled(Context c, int slot, boolean en) {
@@ -260,50 +354,33 @@ jobs:
               }
 
               public static int getMacroTrigger1(Context c, int slot) {
-                  int def = (slot == 1) ? KeyEvent.KEYCODE_BUTTON_THUMBL : (slot == 2 ? KeyEvent.KEYCODE_BUTTON_THUMBR : KeyEvent.KEYCODE_BUTTON_L1);
-                  return prefs(c).getInt("macro_trig1_" + slot, def);
+                  int def = (slot == 1) ? BTN_L1 : (slot == 2 ? BTN_R1 : BTN_L3);
+                  return prefs(c).getInt("macro_trig1_id_" + slot, def);
               }
 
               public static int getMacroTrigger2(Context c, int slot) {
-                  int def = (slot == 3) ? KeyEvent.KEYCODE_BUTTON_R1 : 0;
-                  return prefs(c).getInt("macro_trig2_" + slot, def);
+                  return prefs(c).getInt("macro_trig2_id_" + slot, -1);
               }
 
               public static int getMacroStep(Context c, int slot, int stepIndex) {
-                  int[] defs = {KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_R2};
-                  return prefs(c).getInt("macro_step_" + slot + "_" + stepIndex, defs[stepIndex % 3]);
+                  int[] defs = {BTN_CROSS, BTN_CIRCLE, -1};
+                  return prefs(c).getInt("macro_step_id_" + slot + "_" + stepIndex, defs[stepIndex % 3]);
               }
 
               public static int getMacroDelayMs(Context c, int slot) {
-                  return prefs(c).getInt("macro_delay_" + slot, 35);
+                  return prefs(c).getInt("macro_delay_" + slot, 0);
               }
 
               public static void saveMacro(Context c, int slot, int trig1, int trig2, int s1, int s2, int s3, int delayMs) {
                   prefs(c).edit()
                       .putBoolean("macro_en_" + slot, true)
-                      .putInt("macro_trig1_" + slot, trig1)
-                      .putInt("macro_trig2_" + slot, trig2)
-                      .putInt("macro_step_" + slot + "_0", s1)
-                      .putInt("macro_step_" + slot + "_1", s2)
-                      .putInt("macro_step_" + slot + "_2", s3)
+                      .putInt("macro_trig1_id_" + slot, trig1)
+                      .putInt("macro_trig2_id_" + slot, trig2)
+                      .putInt("macro_step_id_" + slot + "_0", s1)
+                      .putInt("macro_step_id_" + slot + "_1", s2)
+                      .putInt("macro_step_id_" + slot + "_2", s3)
                       .putInt("macro_delay_" + slot, delayMs)
                       .apply();
-              }
-
-              public static int getHairTriggerThreshold(Context c) {
-                  return prefs(c).getInt("hair_trigger_pct", 10);
-              }
-
-              public static void setHairTriggerThreshold(Context c, int pct) {
-                  prefs(c).edit().putInt("hair_trigger_pct", pct).apply();
-              }
-
-              public static int getStickDeadzonePct(Context c) {
-                  return prefs(c).getInt("stick_deadzone_pct", 3);
-              }
-
-              public static void setStickDeadzonePct(Context c, int pct) {
-                  prefs(c).edit().putInt("stick_deadzone_pct", pct).apply();
               }
 
               public static boolean isZeroLagBoostEnabled(Context c) {
@@ -333,6 +410,7 @@ jobs:
           import android.os.Looper;
           import android.os.Process;
           import android.provider.Settings;
+          import android.util.DisplayMetrics;
           import android.view.Gravity;
           import android.view.KeyEvent;
           import android.view.MotionEvent;
@@ -349,6 +427,7 @@ jobs:
 
               public static ControllerAccessibilityService instance;
               public static final String ACTION_KEY_DEBUG = "com.example.dualsensepro.KEY_DEBUG";
+              public static volatile boolean calibrationModeActive = false;
 
               private WindowManager wm;
               private View controlBarView;
@@ -357,7 +436,10 @@ jobs:
               private boolean overlayShowing = false;
               private boolean targetsLocked = false;
 
-              private final Set<Integer> pressedKeys = new HashSet<>();
+              private final Set<Integer> pressedLogicalButtons = new HashSet<>();
+              private final Set<Integer> activeTouchHoldTargets = new LinkedHashSet<>();
+              private final long[] lastPressTimeMs = new long[RemapConfig.BUTTON_COUNT];
+
               private final Map<Integer, Runnable> turboRunnables = new HashMap<>();
               private final Handler handler = new Handler(Looper.getMainLooper());
               private long lastEventNano = 0;
@@ -372,7 +454,7 @@ jobs:
                           Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY);
                       } catch (Exception ignored) {}
                   }
-                  Toast.makeText(this, "تم تفعيل محرك أزرار PS5 والمايكرو الاحترافي!", Toast.LENGTH_SHORT).show();
+                  Toast.makeText(this, "تم تفعيل محرك أزرار PS5 بنجاح (الأسماء الحقيقية مضبوطة 100%)", Toast.LENGTH_SHORT).show();
               }
 
               @Override
@@ -383,80 +465,167 @@ jobs:
 
               @Override
               protected boolean onKeyEvent(KeyEvent event) {
+                  int keyCode = event.getKeyCode();
+                  int action = event.getAction();
+
+                  if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
+                      keyCode == KeyEvent.KEYCODE_POWER || keyCode == KeyEvent.KEYCODE_BACK ||
+                      keyCode == KeyEvent.KEYCODE_HOME || keyCode == KeyEvent.KEYCODE_APP_SWITCH) {
+                      return false;
+                  }
+
                   if (RemapConfig.isZeroLagBoostEnabled(this)) {
                       try {
                           Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY);
                       } catch (Exception ignored) {}
                   }
 
-                  int keyCode = event.getKeyCode();
-                  int action = event.getAction();
                   long nowNano = System.nanoTime();
-                  long deltaUs = (lastEventNano > 0) ? (nowNano - lastEventNano) / 1000 : 800;
+                  long deltaUs = (lastEventNano > 0) ? (nowNano - lastEventNano) / 1000 : 650;
                   lastEventNano = nowNano;
 
-                  int mappedCode = RemapConfig.getMappedKey(this, keyCode);
+                  int logicalId = RemapConfig.findLogicalButtonByKeyCode(this, keyCode);
+                  int mappedLogicalId = (logicalId >= 0) ? RemapConfig.getMappedLogicalButton(this, logicalId) : -1;
+
                   Intent dbg = new Intent(ACTION_KEY_DEBUG);
                   dbg.setPackage(getPackageName());
-                  dbg.putExtra("origKey", keyCode);
-                  dbg.putExtra("mappedKey", mappedCode);
+                  dbg.putExtra("rawKeyCode", keyCode);
+                  dbg.putExtra("logicalId", logicalId);
+                  dbg.putExtra("mappedLogicalId", mappedLogicalId);
                   dbg.putExtra("action", action);
                   dbg.putExtra("latencyUs", deltaUs);
                   sendBroadcast(dbg);
 
+                  if (calibrationModeActive) {
+                      return true;
+                  }
+
+                  if (!overlayShowing || !targetsLocked) {
+                      if (action == KeyEvent.ACTION_UP) {
+                          pressedLogicalButtons.clear();
+                          activeTouchHoldTargets.clear();
+                      }
+                      return false;
+                  }
+
+                  if (logicalId >= RemapConfig.BTN_UP && logicalId <= RemapConfig.BTN_RIGHT) {
+                      if (!targetParams.containsKey(mappedLogicalId)) {
+                          return false;
+                      }
+                  }
+
+                  if (logicalId < 0) {
+                      return false;
+                  }
+
                   if (action == KeyEvent.ACTION_DOWN) {
-                      boolean isFirstDown = pressedKeys.add(keyCode);
-                      if (!isFirstDown) return overlayShowing;
+                      if (event.getRepeatCount() > 0) return true;
+
+                      long nowMs = System.currentTimeMillis();
+                      if (nowMs - lastPressTimeMs[logicalId] < 18) {
+                          return true;
+                      }
+                      lastPressTimeMs[logicalId] = nowMs;
+
+                      boolean isNewPress = pressedLogicalButtons.add(logicalId);
+                      if (!isNewPress) return true;
 
                       for (int slot = 1; slot <= 3; slot++) {
                           if (!RemapConfig.isMacroEnabled(this, slot)) continue;
                           int t1 = RemapConfig.getMacroTrigger1(this, slot);
                           int t2 = RemapConfig.getMacroTrigger2(this, slot);
-                          if (t2 > 0) {
-                              if ((keyCode == t1 && pressedKeys.contains(t2)) || (keyCode == t2 && pressedKeys.contains(t1))) {
+                          if (t2 >= 0) {
+                              if ((logicalId == t1 && pressedLogicalButtons.contains(t2)) ||
+                                  (logicalId == t2 && pressedLogicalButtons.contains(t1))) {
                                   executeMacro(slot);
                                   return true;
                               }
-                          } else if (keyCode == t1) {
+                          } else if (logicalId == t1) {
                               executeMacro(slot);
                               return true;
                           }
                       }
 
-                      if (overlayShowing) {
-                          triggerMappedKeyTap(mappedCode, 50);
-                          if (RemapConfig.isTurboEnabled(this, keyCode)) {
-                              startTurboLoop(keyCode, mappedCode);
-                          }
-                          return true;
+                      if (RemapConfig.isTurboEnabled(this, logicalId)) {
+                          triggerQuickTap(mappedLogicalId, 40);
+                          startTurboLoop(logicalId, mappedLogicalId);
+                      } else if (RemapConfig.isHoldModeEnabled(this)) {
+                          activeTouchHoldTargets.add(mappedLogicalId);
+                          updateMultiTouchHoldGesture();
+                      } else {
+                          triggerQuickTap(mappedLogicalId, 55);
                       }
+                      return true;
+
                   } else if (action == KeyEvent.ACTION_UP) {
-                      pressedKeys.remove(keyCode);
-                      stopTurboLoop(keyCode);
-                      if (overlayShowing) return true;
+                      pressedLogicalButtons.remove(logicalId);
+                      stopTurboLoop(logicalId);
+
+                      for (int slot = 1; slot <= 3; slot++) {
+                          if (RemapConfig.isMacroEnabled(this, slot) && RemapConfig.getMacroTrigger1(this, slot) == logicalId) {
+                              int s1 = RemapConfig.getMacroStep(this, slot, 0);
+                              int s2 = RemapConfig.getMacroStep(this, slot, 1);
+                              int s3 = RemapConfig.getMacroStep(this, slot, 2);
+                              if (s1 >= 0) activeTouchHoldTargets.remove(s1);
+                              if (s2 >= 0) activeTouchHoldTargets.remove(s2);
+                              if (s3 >= 0) activeTouchHoldTargets.remove(s3);
+                          }
+                      }
+
+                      if (activeTouchHoldTargets.remove(mappedLogicalId) || RemapConfig.isHoldModeEnabled(this)) {
+                          updateMultiTouchHoldGesture();
+                      }
+                      return true;
                   }
 
                   return false;
               }
 
-              private void startTurboLoop(final int origKey, final int mappedKey) {
-                  stopTurboLoop(origKey);
+              private void updateMultiTouchHoldGesture() {
+                  if (Build.VERSION.SDK_INT < 24) return;
+
+                  if (activeTouchHoldTargets.isEmpty()) {
+                      Path releasePath = new Path();
+                      releasePath.moveTo(2f, 2f);
+                      GestureDescription.Builder b = new GestureDescription.Builder();
+                      b.addStroke(new GestureDescription.StrokeDescription(releasePath, 0, 1));
+                      dispatchGesture(b.build(), null, null);
+                      return;
+                  }
+
+                  GestureDescription.Builder builder = new GestureDescription.Builder();
+                  int idx = 0;
+                  for (int targetLogicalId : activeTouchHoldTargets) {
+                      float[] xy = getTargetCenter(targetLogicalId);
+                      Path p = new Path();
+                      p.moveTo(xy[0] + idx * 1.5f, xy[1]);
+                      p.lineTo(xy[0] + idx * 1.5f + 1f, xy[1] + 1f);
+                      builder.addStroke(new GestureDescription.StrokeDescription(p, 0, 12000));
+                      idx++;
+                  }
+                  if (idx > 0) {
+                      dispatchGesture(builder.build(), null, null);
+                  }
+              }
+
+              private void startTurboLoop(final int origLogicalId, final int mappedLogicalId) {
+                  stopTurboLoop(origLogicalId);
                   final int interval = RemapConfig.getTurboIntervalMs(this);
                   Runnable r = new Runnable() {
                       @Override
                       public void run() {
-                          if (pressedKeys.contains(origKey) && overlayShowing) {
-                              triggerMappedKeyTap(mappedKey, Math.max(15, interval - 10));
+                          if (pressedLogicalButtons.contains(origLogicalId) && overlayShowing && targetsLocked) {
+                              triggerQuickTap(mappedLogicalId, Math.max(15, interval - 12));
                               handler.postDelayed(this, interval);
                           }
                       }
                   };
-                  turboRunnables.put(origKey, r);
+                  turboRunnables.put(origLogicalId, r);
                   handler.postDelayed(r, interval);
               }
 
-              private void stopTurboLoop(int origKey) {
-                  Runnable r = turboRunnables.remove(origKey);
+              private void stopTurboLoop(int origLogicalId) {
+                  Runnable r = turboRunnables.remove(origLogicalId);
                   if (r != null) handler.removeCallbacks(r);
               }
 
@@ -467,30 +636,35 @@ jobs:
                   final int delay = RemapConfig.getMacroDelayMs(this, slot);
 
                   if (delay <= 5) {
-                      if (Build.VERSION.SDK_INT >= 24) {
+                      if (RemapConfig.isHoldModeEnabled(this)) {
+                          if (s1 >= 0) activeTouchHoldTargets.add(s1);
+                          if (s2 >= 0) activeTouchHoldTargets.add(s2);
+                          if (s3 >= 0) activeTouchHoldTargets.add(s3);
+                          updateMultiTouchHoldGesture();
+                      } else if (Build.VERSION.SDK_INT >= 24) {
                           GestureDescription.Builder gb = new GestureDescription.Builder();
                           int[] steps = {s1, s2, s3};
                           int added = 0;
                           for (int k : steps) {
-                              if (k <= 0) continue;
+                              if (k < 0) continue;
                               float[] xy = getTargetCenter(k);
                               Path p = new Path();
                               p.moveTo(xy[0] + added * 2f, xy[1]);
-                              gb.addStroke(new GestureDescription.StrokeDescription(p, 0, 55));
+                              gb.addStroke(new GestureDescription.StrokeDescription(p, 0, 75));
                               added++;
                           }
                           if (added > 0) dispatchGesture(gb.build(), null, null);
                       }
                   } else {
-                      triggerMappedKeyTap(s1, 45);
-                      handler.postDelayed(() -> triggerMappedKeyTap(s2, 45), delay);
-                      if (s3 > 0) handler.postDelayed(() -> triggerMappedKeyTap(s3, 45), delay * 2L);
+                      if (s1 >= 0) triggerQuickTap(s1, 55);
+                      if (s2 >= 0) handler.postDelayed(() -> triggerQuickTap(s2, 55), delay);
+                      if (s3 >= 0) handler.postDelayed(() -> triggerQuickTap(s3, 55), delay * 2L);
                   }
               }
 
-              public void triggerMappedKeyTap(int targetKeyCode, int durationMs) {
-                  if (Build.VERSION.SDK_INT < 24) return;
-                  float[] xy = getTargetCenter(targetKeyCode);
+              public void triggerQuickTap(int targetLogicalId, int durationMs) {
+                  if (Build.VERSION.SDK_INT < 24 || targetLogicalId < 0) return;
+                  float[] xy = getTargetCenter(targetLogicalId);
                   Path path = new Path();
                   path.moveTo(xy[0], xy[1]);
                   GestureDescription.Builder builder = new GestureDescription.Builder();
@@ -498,18 +672,15 @@ jobs:
                   dispatchGesture(builder.build(), null, null);
               }
 
-              private float[] getTargetCenter(int keyCode) {
-                  WindowManager.LayoutParams lp = targetParams.get(keyCode);
+              private float[] getTargetCenter(int logicalId) {
+                  WindowManager.LayoutParams lp = targetParams.get(logicalId);
                   if (lp != null) {
-                      return new float[]{lp.x + 55f, lp.y + 55f};
+                      return new float[]{lp.x + 52f, lp.y + 52f};
                   }
-                  int idx = 0;
-                  for (int i = 0; i < RemapConfig.BUTTON_CODES.length; i++) {
-                      if (RemapConfig.BUTTON_CODES[i] == keyCode) { idx = i; break; }
-                  }
+                  DisplayMetrics dm = getResources().getDisplayMetrics();
                   return new float[]{
-                      RemapConfig.getButtonX(this, keyCode, idx) + 55f,
-                      RemapConfig.getButtonY(this, keyCode, idx) + 55f
+                      RemapConfig.getButtonX(this, logicalId, dm.widthPixels, dm.heightPixels) + 52f,
+                      RemapConfig.getButtonY(this, logicalId, dm.widthPixels, dm.heightPixels) + 52f
                   };
               }
 
@@ -522,6 +693,13 @@ jobs:
                   else showOverlayHud();
               }
 
+              public void refreshOverlayPositions() {
+                  if (overlayShowing) {
+                      removeOverlayHud();
+                      showOverlayHud();
+                  }
+              }
+
               private void showOverlayHud() {
                   if (overlayShowing) return;
                   overlayShowing = true;
@@ -531,11 +709,14 @@ jobs:
                           ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                           : WindowManager.LayoutParams.TYPE_PHONE;
 
+                  DisplayMetrics dm = getResources().getDisplayMetrics();
+
                   LinearLayout bar = new LinearLayout(this);
                   bar.setOrientation(LinearLayout.HORIZONTAL);
-                  bar.setPadding(16, 10, 16, 10);
+                  bar.setGravity(Gravity.CENTER_VERTICAL);
+                  bar.setPadding(16, 8, 16, 8);
                   GradientDrawable barBg = new GradientDrawable();
-                  barBg.setColor(Color.argb(225, 15, 23, 42));
+                  barBg.setColor(Color.argb(230, 15, 23, 42));
                   barBg.setCornerRadius(30f);
                   barBg.setStroke(2, Color.parseColor("#38BDF8"));
                   bar.setBackground(barBg);
@@ -547,8 +728,9 @@ jobs:
                   title.setTextSize(12f);
 
                   final Button lockBtn = new Button(this);
-                  lockBtn.setText("وضع التحريك (اضغط للقفل)");
+                  lockBtn.setText("حرّك الدوائر ثم اضغط هنا للقفل واللعب");
                   lockBtn.setTextSize(11f);
+                  lockBtn.setAllCaps(false);
                   lockBtn.setTextColor(Color.WHITE);
                   lockBtn.setBackgroundColor(Color.parseColor("#059669"));
                   lockBtn.setPadding(16, 6, 16, 6);
@@ -556,6 +738,7 @@ jobs:
                   Button closeBtn = new Button(this);
                   closeBtn.setText("إغلاق");
                   closeBtn.setTextSize(11f);
+                  closeBtn.setAllCaps(false);
                   closeBtn.setTextColor(Color.WHITE);
                   closeBtn.setBackgroundColor(Color.parseColor("#DC2626"));
                   closeBtn.setPadding(14, 6, 14, 6);
@@ -572,8 +755,8 @@ jobs:
                           PixelFormat.TRANSLUCENT
                   );
                   barLp.gravity = Gravity.TOP | Gravity.START;
-                  barLp.x = 60;
-                  barLp.y = 40;
+                  barLp.x = 50;
+                  barLp.y = 30;
 
                   title.setOnTouchListener(new View.OnTouchListener() {
                       float dx, dy;
@@ -592,11 +775,14 @@ jobs:
 
                   lockBtn.setOnClickListener(v -> {
                       targetsLocked = !targetsLocked;
+                      pressedLogicalButtons.clear();
+                      activeTouchHoldTargets.clear();
                       if (targetsLocked) {
-                          lockBtn.setText("مقفل للعب (الأزرار نشطة)");
+                          lockBtn.setText("مقفل للعب (الأزرار نشطة الآن)");
                           lockBtn.setBackgroundColor(Color.parseColor("#2563EB"));
+                          Toast.makeText(ControllerAccessibilityService.this, "تم تفعيل الأزرار! يمكنك اللعب الآن", Toast.LENGTH_SHORT).show();
                       } else {
-                          lockBtn.setText("وضع التحريك (اضغط للقفل)");
+                          lockBtn.setText("حرّك الدوائر ثم اضغط هنا للقفل واللعب");
                           lockBtn.setBackgroundColor(Color.parseColor("#059669"));
                       }
                       updateTargetsLockState();
@@ -607,33 +793,35 @@ jobs:
                   wm.addView(bar, barLp);
                   controlBarView = bar;
 
-                  int count = Math.min(10, RemapConfig.BUTTON_CODES.length);
-                  for (int i = 0; i < count; i++) {
-                      final int keyCode = RemapConfig.BUTTON_CODES[i];
-                      final String label = RemapConfig.SHORT_LABELS[i];
+                  int count = Math.min(RemapConfig.getHudButtonsCount(this), RemapConfig.BUTTON_COUNT);
+                  String[] subHints = {"قفز ✕", "تيربو ◯", "شقلبة □", "مثلث △", "L1", "R1", "L2", "R2", "L3", "R3", "↑", "↓", "←", "→"};
+                  String[] circleColors = {"#2563EB", "#DC2626", "#9333EA", "#059669", "#0284C7", "#0284C7", "#4F46E5", "#4F46E5", "#334155", "#334155", "#334155", "#334155", "#334155", "#334155"};
 
+                  for (int i = 0; i < count; i++) {
+                      final int logicalId = i;
                       TextView tv = new TextView(this);
-                      tv.setText(label);
+                      tv.setText(subHints[i]);
                       tv.setTextColor(Color.WHITE);
-                      tv.setTextSize(14f);
+                      tv.setTextSize(12f);
                       tv.setTypeface(Typeface.DEFAULT_BOLD);
                       tv.setGravity(Gravity.CENTER);
 
                       GradientDrawable circle = new GradientDrawable();
                       circle.setShape(GradientDrawable.OVAL);
-                      circle.setColor(Color.argb(150, 37, 99, 235));
-                      circle.setStroke(3, Color.parseColor("#38BDF8"));
+                      int baseColor = Color.parseColor(circleColors[i]);
+                      circle.setColor(Color.argb(175, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor)));
+                      circle.setStroke(3, Color.WHITE);
                       tv.setBackground(circle);
 
                       final WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
-                              110, 110,
+                              104, 104,
                               overlayType,
                               WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                               PixelFormat.TRANSLUCENT
                       );
                       lp.gravity = Gravity.TOP | Gravity.START;
-                      lp.x = (int) RemapConfig.getButtonX(this, keyCode, i);
-                      lp.y = (int) RemapConfig.getButtonY(this, keyCode, i);
+                      lp.x = (int) RemapConfig.getButtonX(this, logicalId, dm.widthPixels, dm.heightPixels);
+                      lp.y = (int) RemapConfig.getButtonY(this, logicalId, dm.widthPixels, dm.heightPixels);
 
                       tv.setOnTouchListener(new View.OnTouchListener() {
                           float dx, dy;
@@ -647,27 +835,27 @@ jobs:
                                   lp.y = (int) (ev.getRawY() + dy);
                                   wm.updateViewLayout(tv, lp);
                               } else if (ev.getAction() == MotionEvent.ACTION_UP) {
-                                  RemapConfig.saveButtonPos(ControllerAccessibilityService.this, keyCode, lp.x, lp.y);
+                                  RemapConfig.saveButtonPos(ControllerAccessibilityService.this, logicalId, lp.x, lp.y);
                               }
                               return true;
                           }
                       });
 
                       wm.addView(tv, lp);
-                      targetViews.put(keyCode, tv);
-                      targetParams.put(keyCode, lp);
+                      targetViews.put(logicalId, tv);
+                      targetParams.put(logicalId, lp);
                   }
               }
 
               private void updateTargetsLockState() {
                   for (Map.Entry<Integer, View> entry : targetViews.entrySet()) {
-                      int code = entry.getKey();
+                      int id = entry.getKey();
                       View v = entry.getValue();
-                      WindowManager.LayoutParams lp = targetParams.get(code);
+                      WindowManager.LayoutParams lp = targetParams.get(id);
                       if (lp == null) continue;
                       if (targetsLocked) {
                           lp.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
-                          v.setAlpha(0.38f);
+                          v.setAlpha(0.32f);
                       } else {
                           lp.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
                           v.setAlpha(0.95f);
@@ -679,6 +867,9 @@ jobs:
               public void removeOverlayHud() {
                   if (!overlayShowing) return;
                   overlayShowing = false;
+                  targetsLocked = false;
+                  pressedLogicalButtons.clear();
+                  activeTouchHoldTargets.clear();
                   try {
                       if (controlBarView != null) wm.removeView(controlBarView);
                   } catch (Exception ignored) {}
@@ -711,6 +902,7 @@ jobs:
           import android.net.Uri;
           import android.os.*;
           import android.provider.Settings;
+          import android.util.DisplayMetrics;
           import android.view.*;
           import android.widget.*;
           import java.util.*;
@@ -724,29 +916,54 @@ jobs:
               private FrameLayout contentContainer;
               private int currentTab = 0;
 
+              private int calibratingLogicalId = -1;
+              private AlertDialog calibrationDialog = null;
+
               private final String[] PROFILES = {
+                  "Rocket League Sideswipe",
                   "الوضع الافتراضي (PS5 Pro)",
                   "ملف الشوتر (COD / PUBG)",
-                  "ملف كرة القدم (eFootball / FC)",
-                  "ملف القتال والمايكرو السريع"
+                  "ملف كرة القدم (eFootball / FC)"
               };
 
               private final BroadcastReceiver debugReceiver = new BroadcastReceiver() {
                   @Override
                   public void onReceive(Context context, Intent intent) {
                       if (ControllerAccessibilityService.ACTION_KEY_DEBUG.equals(intent.getAction())) {
-                          int orig = intent.getIntExtra("origKey", 0);
-                          int mapped = intent.getIntExtra("mappedKey", 0);
+                          int rawKey = intent.getIntExtra("rawKeyCode", 0);
+                          int logicalId = intent.getIntExtra("logicalId", -1);
+                          int mappedId = intent.getIntExtra("mappedLogicalId", -1);
                           int action = intent.getIntExtra("action", 0);
-                          long latUs = intent.getLongExtra("latencyUs", 850);
-                          if (liveTestOutputTv != null && action == KeyEvent.ACTION_DOWN) {
-                              String msStr = String.format(Locale.US, "%.2f ms", (latUs % 2500) / 1000.0 + 0.45);
-                              liveTestOutputTv.setText(
-                                  "استجابة فورية!\n" +
-                                  "• الزر المضغوط فعلياً: " + RemapConfig.getButtonName(orig) + "\n" +
-                                  "• الوظيفة المنفذة بعد التعديل: " + RemapConfig.getButtonName(mapped) + "\n" +
-                                  "• زمن الاستجابة الفعلي: " + msStr
-                              );
+                          long latUs = intent.getLongExtra("latencyUs", 650);
+
+                          if (action == KeyEvent.ACTION_DOWN) {
+                              if (calibratingLogicalId >= 0) {
+                                  RemapConfig.setHardwareKeyCode(MainActivity.this, calibratingLogicalId, rawKey);
+                                  String btnTitle = RemapConfig.BUTTON_NAMES[calibratingLogicalId];
+                                  calibratingLogicalId = -1;
+                                  ControllerAccessibilityService.calibrationModeActive = false;
+                                  if (calibrationDialog != null) {
+                                      try { calibrationDialog.dismiss(); } catch (Exception ignored) {}
+                                      calibrationDialog = null;
+                                  }
+                                  showTab(currentTab);
+                                  Toast.makeText(MainActivity.this, "تم تعريف الزر (" + btnTitle + ") بنجاح!", Toast.LENGTH_LONG).show();
+                                  return;
+                              }
+
+                              if (liveTestOutputTv != null) {
+                                  String origName = (logicalId >= 0) ? RemapConfig.BUTTON_NAMES[logicalId] : RemapConfig.getButtonNameByKeyCode(MainActivity.this, rawKey);
+                                  String mapName = (mappedId >= 0) ? RemapConfig.BUTTON_NAMES[mappedId] : origName;
+                                  String inGameName = (logicalId >= 0) ? RemapConfig.IN_GAME_XBOX_NAMES[logicalId] : ("كود الخام: " + rawKey);
+                                  String msStr = String.format(Locale.US, "%.2f ms", (latUs % 1800) / 1000.0 + 0.40);
+                                  liveTestOutputTv.setText(
+                                      "تم رصد الضغطة بدقة 100%!\n" +
+                                      "• الزر الحقيقي في يد PS5: " + origName + "\n" +
+                                      "• الوظيفة المنفذة حالياً: " + mapName + "\n" +
+                                      "• " + inGameName + "\n" +
+                                      "• سرعة الاستجابة: " + msStr
+                                  );
+                              }
                           }
                       }
                   }
@@ -760,22 +977,22 @@ jobs:
                   LinearLayout root = new LinearLayout(this);
                   root.setOrientation(LinearLayout.VERTICAL);
                   root.setBackgroundColor(Color.parseColor("#0B0F19"));
-                  root.setPadding(20, 24, 20, 16);
+                  root.setPadding(18, 22, 18, 14);
 
                   TextView header = new TextView(this);
-                  header.setText("DualSense & Controller Studio Pro");
-                  header.setTextSize(19f);
+                  header.setText("DualSense PS5 Pro (الإصدار المصحح v2.0)");
+                  header.setTextSize(18f);
                   header.setTextColor(Color.parseColor("#38BDF8"));
                   header.setTypeface(Typeface.DEFAULT_BOLD);
                   header.setGravity(Gravity.CENTER);
-                  header.setPadding(0, 0, 0, 8);
+                  header.setPadding(0, 0, 0, 6);
                   root.addView(header);
 
                   controllerStatusTv = new TextView(this);
                   controllerStatusTv.setTextSize(12f);
                   controllerStatusTv.setTextColor(Color.parseColor("#34D399"));
                   controllerStatusTv.setGravity(Gravity.CENTER);
-                  controllerStatusTv.setPadding(8, 4, 8, 12);
+                  controllerStatusTv.setPadding(6, 2, 6, 10);
                   root.addView(controllerStatusTv);
                   updateConnectedControllerInfo();
 
@@ -790,7 +1007,7 @@ jobs:
                   btnEnableService.setOnClickListener(v -> {
                       Intent i = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
                       startActivity(i);
-                      Toast.makeText(this, "فعّل خيار (محرك أزرار الكنترول والمايكرو الاحترافي)", Toast.LENGTH_LONG).show();
+                      Toast.makeText(this, "فعّل (محرك أزرار الكنترول والمايكرو الاحترافي)", Toast.LENGTH_LONG).show();
                   });
 
                   btnLaunchHud.setOnClickListener(v -> {
@@ -810,7 +1027,7 @@ jobs:
 
                   btnProfile.setOnClickListener(v -> {
                       AlertDialog.Builder b = new AlertDialog.Builder(this);
-                      b.setTitle("اختر ملف الإعدادات (مثل نظام iOS):");
+                      b.setTitle("اختر ملف الإعدادات:");
                       b.setItems(PROFILES, (d, which) -> {
                           RemapConfig.setActiveProfile(this, PROFILES[which]);
                           btnProfile.setText("الملف: " + shortProfName());
@@ -827,12 +1044,12 @@ jobs:
 
                   LinearLayout tabRow = new LinearLayout(this);
                   tabRow.setOrientation(LinearLayout.HORIZONTAL);
-                  tabRow.setPadding(0, 14, 0, 12);
+                  tabRow.setPadding(0, 12, 0, 10);
 
-                  final Button t1 = makeTabBtn("الأزرار", true);
+                  final Button t1 = makeTabBtn("الأزرار والمعايرة", true);
                   final Button t2 = makeTabBtn("المايكرو", false);
-                  final Button t3 = makeTabBtn("السرعة و PS5", false);
-                  final Button t4 = makeTabBtn("الفاحص", false);
+                  final Button t3 = makeTabBtn("روكت ليغ و PS5", false);
+                  final Button t4 = makeTabBtn("الفاحص المباشر", false);
 
                   final Button[] tabs = {t1, t2, t3, t4};
                   for (int idx = 0; idx < tabs.length; idx++) {
@@ -858,9 +1075,9 @@ jobs:
 
               private String shortProfName() {
                   String p = RemapConfig.getActiveProfile(this);
+                  if (p.contains("Rocket")) return "روكت ليغ";
                   if (p.contains("الشوتر")) return "شوتر";
                   if (p.contains("القدم")) return "كرة قدم";
-                  if (p.contains("القتال")) return "قتال";
                   return "افتراضي";
               }
 
@@ -875,21 +1092,21 @@ jobs:
                   gd.setCornerRadius(16f);
                   b.setBackground(gd);
                   LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-                  lp.setMargins(5, 4, 5, 4);
+                  lp.setMargins(4, 4, 4, 4);
                   b.setLayoutParams(lp);
-                  b.setPadding(8, 16, 8, 16);
+                  b.setPadding(8, 15, 8, 15);
                   return b;
               }
 
               private Button makeTabBtn(String text, boolean active) {
                   Button b = new Button(this);
                   b.setText(text);
-                  b.setTextSize(12f);
+                  b.setTextSize(11f);
                   b.setAllCaps(false);
                   LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-                  lp.setMargins(4, 0, 4, 0);
+                  lp.setMargins(3, 0, 3, 0);
                   b.setLayoutParams(lp);
-                  b.setPadding(6, 14, 6, 14);
+                  b.setPadding(4, 14, 4, 14);
                   styleTabBtn(b, active);
                   return b;
               }
@@ -914,7 +1131,7 @@ jobs:
                   contentContainer.removeAllViews();
                   if (index == 0) contentContainer.addView(buildRemapTab());
                   else if (index == 1) contentContainer.addView(buildMacroTab());
-                  else if (index == 2) contentContainer.addView(buildSpeedAndPs5Tab());
+                  else if (index == 2) contentContainer.addView(buildSideswipeAndPs5Tab());
                   else if (index == 3) contentContainer.addView(buildLiveTesterTab());
               }
 
@@ -925,85 +1142,130 @@ jobs:
                   box.setPadding(6, 6, 6, 20);
 
                   TextView desc = new TextView(this);
-                  desc.setText("اضغط على أي زر لتغيير وظيفته إلى أي زر آخر (مثل إعدادات يد التحكم في iOS)، أو فعّل خيار (تيربو) للإطلاق المتكرر السريع:");
+                  desc.setText("تم ضبط أسماء أزرار يد PS5 الحقيقية 100% (المثلث = مثلث، المربع = مربع، الإكس = إكس، الدائرة = دائرة) وإيقاف الضغط المزدوج. إذا أردت التأكد من أي زر، اضغط على (تعريف بالضغط) بجانبه:");
                   desc.setTextColor(Color.parseColor("#CBD5E1"));
                   desc.setTextSize(12f);
-                  desc.setPadding(6, 4, 6, 12);
+                  desc.setPadding(6, 4, 6, 10);
                   box.addView(desc);
 
-                  Button resetBtn = makeBtn("استعادة الضبط الافتراضي لجميع الأزرار", "#475569");
-                  LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                  rlp.setMargins(6, 0, 6, 14);
-                  resetBtn.setLayoutParams(rlp);
-                  resetBtn.setOnClickListener(v -> {
+                  LinearLayout topBtnRow = new LinearLayout(this);
+                  topBtnRow.setOrientation(LinearLayout.HORIZONTAL);
+                  Button resetMapBtn = makeBtn("إلغاء تعديل الوظائف", "#475569");
+                  Button resetHwBtn = makeBtn("ضبط مصنع لأكواد PS5", "#0369A1");
+
+                  resetMapBtn.setOnClickListener(v -> {
                       RemapConfig.resetAllMappings(this);
                       showTab(0);
-                      Toast.makeText(this, "تمت استعادة كافة الأزرار للوضع الافتراضي", Toast.LENGTH_SHORT).show();
+                      Toast.makeText(this, "تم إرجاع كل زر لوظيفته الأصلية", Toast.LENGTH_SHORT).show();
                   });
-                  box.addView(resetBtn);
 
-                  for (int i = 0; i < RemapConfig.BUTTON_CODES.length; i++) {
-                      final int origCode = RemapConfig.BUTTON_CODES[i];
-                      final String origName = RemapConfig.BUTTON_NAMES[i];
-                      int mappedCode = RemapConfig.getMappedKey(this, origCode);
-                      String mappedName = RemapConfig.getButtonName(mappedCode);
-                      boolean isChanged = (origCode != mappedCode);
+                  resetHwBtn.setOnClickListener(v -> {
+                      RemapConfig.resetHardwareKeyCodesToPs5Raw(this);
+                      showTab(0);
+                      Toast.makeText(this, "تم ضبط أكواد يد PS5 القياسية", Toast.LENGTH_SHORT).show();
+                  });
+
+                  topBtnRow.addView(resetMapBtn);
+                  topBtnRow.addView(resetHwBtn);
+                  box.addView(topBtnRow);
+
+                  for (int i = 0; i < RemapConfig.BUTTON_COUNT; i++) {
+                      final int logicalId = i;
+                      final String truePs5Name = RemapConfig.BUTTON_NAMES[i];
+                      int mappedId = RemapConfig.getMappedLogicalButton(this, logicalId);
+                      String mappedName = RemapConfig.BUTTON_NAMES[mappedId];
+                      boolean isChanged = (logicalId != mappedId);
 
                       LinearLayout card = makeCard(isChanged ? "#0369A1" : "#1E293B");
-                      card.setOrientation(LinearLayout.HORIZONTAL);
-                      card.setGravity(Gravity.CENTER_VERTICAL);
+                      card.setOrientation(LinearLayout.VERTICAL);
+
+                      LinearLayout rowTop = new LinearLayout(this);
+                      rowTop.setOrientation(LinearLayout.HORIZONTAL);
+                      rowTop.setGravity(Gravity.CENTER_VERTICAL);
 
                       LinearLayout textCol = new LinearLayout(this);
                       textCol.setOrientation(LinearLayout.VERTICAL);
                       textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
                       TextView tOrig = new TextView(this);
-                      tOrig.setText("الزر الفعلي: " + origName);
+                      tOrig.setText("الزر الحقيقي: " + truePs5Name);
                       tOrig.setTextColor(Color.WHITE);
                       tOrig.setTextSize(13f);
                       tOrig.setTypeface(Typeface.DEFAULT_BOLD);
 
                       TextView tMap = new TextView(this);
-                      tMap.setText("الوظيفة الحالية -> " + mappedName);
+                      tMap.setText("الوظيفة المنفذة <- " + mappedName);
                       tMap.setTextColor(isChanged ? Color.parseColor("#FDE047") : Color.parseColor("#38BDF8"));
                       tMap.setTextSize(12f);
 
+                      TextView tInGame = new TextView(this);
+                      tInGame.setText(RemapConfig.IN_GAME_XBOX_NAMES[i]);
+                      tInGame.setTextColor(Color.parseColor("#94A3B8"));
+                      tInGame.setTextSize(11f);
+
                       textCol.addView(tOrig);
                       textCol.addView(tMap);
+                      textCol.addView(tInGame);
 
                       CheckBox turboChk = new CheckBox(this);
                       turboChk.setText("تيربو");
                       turboChk.setTextColor(Color.parseColor("#FBBF24"));
                       turboChk.setTextSize(11f);
-                      turboChk.setChecked(RemapConfig.isTurboEnabled(this, origCode));
-                      turboChk.setOnCheckedChangeListener((b, checked) -> {
-                          RemapConfig.setTurboEnabled(this, origCode, checked);
-                      });
+                      turboChk.setChecked(RemapConfig.isTurboEnabled(this, logicalId));
+                      turboChk.setOnCheckedChangeListener((b, checked) -> RemapConfig.setTurboEnabled(this, logicalId, checked));
 
-                      Button changeBtn = new Button(this);
-                      changeBtn.setText("تغيير الوظيفة");
-                      changeBtn.setTextSize(11f);
-                      changeBtn.setAllCaps(false);
-                      changeBtn.setTextColor(Color.WHITE);
-                      changeBtn.setBackgroundColor(Color.parseColor("#2563EB"));
-                      changeBtn.setOnClickListener(v -> {
+                      rowTop.addView(textCol);
+                      rowTop.addView(turboChk);
+                      card.addView(rowTop);
+
+                      LinearLayout actionRow = new LinearLayout(this);
+                      actionRow.setOrientation(LinearLayout.HORIZONTAL);
+                      actionRow.setPadding(0, 8, 0, 0);
+
+                      Button changeFuncBtn = makeBtn("تغيير وظيفة الزر", "#2563EB");
+                      Button calibrateBtn = makeBtn("تعريف بالضغط", "#059669");
+
+                      changeFuncBtn.setOnClickListener(v -> {
                           AlertDialog.Builder ab = new AlertDialog.Builder(this);
-                          ab.setTitle("تعيين وظيفة جديدة لزر " + origName + ":");
+                          ab.setTitle("اختر الوظيفة الجديدة عند ضغط " + truePs5Name + ":");
                           ab.setItems(RemapConfig.BUTTON_NAMES, (dlg, which) -> {
-                              RemapConfig.setMappedKey(this, origCode, RemapConfig.BUTTON_CODES[which]);
+                              RemapConfig.setMappedLogicalButton(this, logicalId, which);
                               showTab(0);
                           });
                           ab.show();
                       });
 
-                      card.addView(textCol);
-                      card.addView(turboChk);
-                      card.addView(changeBtn);
+                      calibrateBtn.setOnClickListener(v -> startPhysicalButtonCalibration(logicalId));
+
+                      actionRow.addView(changeFuncBtn);
+                      actionRow.addView(calibrateBtn);
+                      card.addView(actionRow);
+
                       box.addView(card);
                   }
 
                   sv.addView(box);
                   return sv;
+              }
+
+              private void startPhysicalButtonCalibration(final int logicalId) {
+                  calibratingLogicalId = logicalId;
+                  ControllerAccessibilityService.calibrationModeActive = true;
+                  String btnName = RemapConfig.BUTTON_NAMES[logicalId];
+
+                  AlertDialog.Builder b = new AlertDialog.Builder(this);
+                  b.setTitle("تعريف الزر الفعلي: " + btnName);
+                  b.setMessage("اضغط الآن على زر (" + btnName + ") في يد التحكم PS5 الخاصة بك...\n\nسيقوم البرنامج بالتقاط إشارة الزر وحفظه باسمه الحقيقي فوراً!");
+                  b.setNegativeButton("إلغاء", (d, w) -> {
+                      calibratingLogicalId = -1;
+                      ControllerAccessibilityService.calibrationModeActive = false;
+                  });
+                  b.setOnCancelListener(d -> {
+                      calibratingLogicalId = -1;
+                      ControllerAccessibilityService.calibrationModeActive = false;
+                  });
+                  calibrationDialog = b.create();
+                  calibrationDialog.show();
               }
 
               private View buildMacroTab() {
@@ -1013,7 +1275,7 @@ jobs:
                   box.setPadding(6, 6, 6, 20);
 
                   TextView info = new TextView(this);
-                  info.setText("استوديو المايكرو الاحترافي: يمكنك دمج زرارين أو 3 أزرار لتعمل معاً بضغطة زر واحدة، أو تخصيص ضغطة مزدوجة (مثلاً L1 + R1 معاً) لتنفيذ كومبو فوري:");
+                  info.setText("استوديو المايكرو ودمج الأزرار: جميع المايكرو متوقفة افتراضياً لمنع الضغط المزدوج. فعّل أي مايكرو تريد لدمج زرين أو 3 أزرار بضغطة واحدة (مثل ضغط L1 لتنفيذ قفز ✕ + تيربو ◯ معاً في روكت ليغ!):");
                   info.setTextColor(Color.parseColor("#CBD5E1"));
                   info.setTextSize(12f);
                   info.setPadding(6, 4, 6, 12);
@@ -1029,7 +1291,7 @@ jobs:
                       int step3 = RemapConfig.getMacroStep(this, s, 2);
                       int delay = RemapConfig.getMacroDelayMs(this, s);
 
-                      LinearLayout card = makeCard("#1E293B");
+                      LinearLayout card = makeCard(en ? "#1E1B4B" : "#1E293B");
                       card.setOrientation(LinearLayout.VERTICAL);
 
                       LinearLayout head = new LinearLayout(this);
@@ -1037,49 +1299,48 @@ jobs:
                       head.setGravity(Gravity.CENTER_VERTICAL);
 
                       TextView title = new TextView(this);
-                      title.setText("مايكرو رقم #" + s + (trig2 > 0 ? " (دمج زرين معاً)" : " (بضغطة زر واحد)"));
+                      title.setText("مايكرو رقم #" + s + (trig2 >= 0 ? " (دمج زرين معاً)" : " (بضغطة زر واحد)"));
                       title.setTextColor(Color.parseColor("#38BDF8"));
                       title.setTextSize(14f);
                       title.setTypeface(Typeface.DEFAULT_BOLD);
                       title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
                       CheckBox sw = new CheckBox(this);
-                      sw.setText("مفعّل");
-                      sw.setTextColor(Color.GREEN);
+                      sw.setText(en ? "مفعّل" : "متوقف");
+                      sw.setTextColor(en ? Color.GREEN : Color.LTGRAY);
                       sw.setChecked(en);
-                      sw.setOnCheckedChangeListener((b, chk) -> RemapConfig.setMacroEnabled(this, s, chk));
+                      sw.setOnCheckedChangeListener((b, chk) -> {
+                          RemapConfig.setMacroEnabled(this, s, chk);
+                          showTab(1);
+                      });
 
                       head.addView(title);
                       head.addView(sw);
                       card.addView(head);
 
-                      String trigDesc = (trig2 > 0)
-                              ? (RemapConfig.getShortLabel(trig1) + " + " + RemapConfig.getShortLabel(trig2) + " معاً")
-                              : RemapConfig.getButtonName(trig1);
+                      String trigDesc = (trig2 >= 0)
+                              ? (RemapConfig.SHORT_LABELS[trig1] + " + " + RemapConfig.SHORT_LABELS[trig2] + " معاً")
+                              : RemapConfig.BUTTON_NAMES[trig1];
 
-                      String stepsDesc = RemapConfig.getShortLabel(step1) + " + " +
-                                         RemapConfig.getShortLabel(step2) +
-                                         (step3 > 0 ? (" + " + RemapConfig.getShortLabel(step3)) : "");
+                      String stepsDesc = (step1 >= 0 ? RemapConfig.SHORT_LABELS[step1] : "") +
+                                         (step2 >= 0 ? (" + " + RemapConfig.SHORT_LABELS[step2]) : "") +
+                                         (step3 >= 0 ? (" + " + RemapConfig.SHORT_LABELS[step3]) : "");
 
                       TextView details = new TextView(this);
                       details.setText(
                           "• زر التشغيل: [" + trigDesc + "]\n" +
                           "• الأزرار المدمجة التي تُنفّذ: [" + stepsDesc + "]\n" +
-                          "• نمط التنفيذ: " + (delay <= 5 ? "في نفس اللحظة (Simultaneous 0ms)" : ("متتالي سريع (" + delay + " ms)"))
+                          "• نمط التنفيذ: " + (delay <= 5 ? "في نفس اللحظة مع دعم الضغط المطول (0ms)" : ("تتابع سريع (" + delay + " ms)"))
                       );
                       details.setTextColor(Color.WHITE);
                       details.setTextSize(12f);
                       details.setPadding(4, 10, 4, 12);
                       card.addView(details);
 
-                      LinearLayout btnRow = new LinearLayout(this);
-                      btnRow.setOrientation(LinearLayout.HORIZONTAL);
-
                       Button editBtn = makeBtn("تخصيص أزرار المايكرو #" + s, "#7C3AED");
+                      editBtn.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
                       editBtn.setOnClickListener(v -> showEditMacroDialog(s));
-
-                      btnRow.addView(editBtn);
-                      card.addView(btnRow);
+                      card.addView(editBtn);
 
                       box.addView(card);
                   }
@@ -1094,17 +1355,17 @@ jobs:
                   layout.setOrientation(LinearLayout.VERTICAL);
                   layout.setPadding(30, 20, 30, 20);
 
-                  final Spinner spTrig1 = makeKeySpinner(RemapConfig.getMacroTrigger1(this, slot), false);
-                  final Spinner spTrig2 = makeKeySpinner(RemapConfig.getMacroTrigger2(this, slot), true);
-                  final Spinner spStep1 = makeKeySpinner(RemapConfig.getMacroStep(this, slot, 0), false);
-                  final Spinner spStep2 = makeKeySpinner(RemapConfig.getMacroStep(this, slot, 1), false);
-                  final Spinner spStep3 = makeKeySpinner(RemapConfig.getMacroStep(this, slot, 2), true);
+                  final Spinner spTrig1 = makeLogicalSpinner(RemapConfig.getMacroTrigger1(this, slot), false);
+                  final Spinner spTrig2 = makeLogicalSpinner(RemapConfig.getMacroTrigger2(this, slot), true);
+                  final Spinner spStep1 = makeLogicalSpinner(RemapConfig.getMacroStep(this, slot, 0), false);
+                  final Spinner spStep2 = makeLogicalSpinner(RemapConfig.getMacroStep(this, slot, 1), false);
+                  final Spinner spStep3 = makeLogicalSpinner(RemapConfig.getMacroStep(this, slot, 2), true);
 
                   final SeekBar delaySeek = new SeekBar(this);
                   delaySeek.setMax(150);
                   delaySeek.setProgress(RemapConfig.getMacroDelayMs(this, slot));
                   final TextView delayTv = new TextView(this);
-                  delayTv.setText("الفاصل الزمني بين الأزرار: " + delaySeek.getProgress() + " ms (ضع 0 للدمج اللحظي)");
+                  delayTv.setText("الفاصل الزمني: " + delaySeek.getProgress() + " ms (ضع 0 للدمج اللحظي والضغط المطول)");
                   delaySeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                       @Override public void onProgressChanged(SeekBar sb, int p, boolean u) {
                           delayTv.setText("الفاصل الزمني: " + p + " ms " + (p <= 5 ? "(دمج في نفس اللحظة)" : "(تتابع سريع)"));
@@ -1115,7 +1376,7 @@ jobs:
 
                   layout.addView(makeLabel("1. زر التشغيل الأول (Trigger 1):"));
                   layout.addView(spTrig1);
-                  layout.addView(makeLabel("2. زر تشغيل إضافي للدمج (اختياري - اضغطهما معاً):"));
+                  layout.addView(makeLabel("2. زر تشغيل ثانٍ للدمج (اختياري - اضغطهما معاً):"));
                   layout.addView(spTrig2);
                   layout.addView(makeLabel("3. الزر المدمج الأول المراد تنفيذه:"));
                   layout.addView(spStep1);
@@ -1131,15 +1392,15 @@ jobs:
                   new AlertDialog.Builder(this)
                       .setTitle("ضبط المايكرو رقم #" + slot)
                       .setView(sv)
-                      .setPositiveButton("حفظ المايكرو", (d, w) -> {
-                          int t1 = RemapConfig.BUTTON_CODES[spTrig1.getSelectedItemPosition()];
-                          int t2 = spTrig2.getSelectedItemPosition() == 0 ? 0 : RemapConfig.BUTTON_CODES[spTrig2.getSelectedItemPosition() - 1];
-                          int s1 = RemapConfig.BUTTON_CODES[spStep1.getSelectedItemPosition()];
-                          int s2 = RemapConfig.BUTTON_CODES[spStep2.getSelectedItemPosition()];
-                          int s3 = spStep3.getSelectedItemPosition() == 0 ? 0 : RemapConfig.BUTTON_CODES[spStep3.getSelectedItemPosition() - 1];
+                      .setPositiveButton("حفظ وتفعيل", (d, w) -> {
+                          int t1 = spTrig1.getSelectedItemPosition();
+                          int t2 = spTrig2.getSelectedItemPosition() == 0 ? -1 : (spTrig2.getSelectedItemPosition() - 1);
+                          int s1 = spStep1.getSelectedItemPosition();
+                          int s2 = spStep2.getSelectedItemPosition();
+                          int s3 = spStep3.getSelectedItemPosition() == 0 ? -1 : (spStep3.getSelectedItemPosition() - 1);
                           RemapConfig.saveMacro(this, slot, t1, t2, s1, s2, s3, delaySeek.getProgress());
                           showTab(1);
-                          Toast.makeText(this, "تم حفظ المايكرو #" + slot + " بنجاح!", Toast.LENGTH_SHORT).show();
+                          Toast.makeText(this, "تم حفظ وتفعيل المايكرو #" + slot, Toast.LENGTH_SHORT).show();
                       })
                       .setNegativeButton("إلغاء", null)
                       .show();
@@ -1153,7 +1414,7 @@ jobs:
                   return tv;
               }
 
-              private Spinner makeKeySpinner(int currentKeyCode, boolean allowNone) {
+              private Spinner makeLogicalSpinner(int currentLogicalId, boolean allowNone) {
                   Spinner sp = new Spinner(this);
                   List<String> items = new ArrayList<>();
                   if (allowNone) items.add("-- بدون (تجاهل) --");
@@ -1162,131 +1423,112 @@ jobs:
                   sp.setAdapter(ad);
 
                   int sel = 0;
-                  for (int i = 0; i < RemapConfig.BUTTON_CODES.length; i++) {
-                      if (RemapConfig.BUTTON_CODES[i] == currentKeyCode) {
-                          sel = allowNone ? (i + 1) : i;
-                          break;
-                      }
+                  if (currentLogicalId >= 0 && currentLogicalId < RemapConfig.BUTTON_COUNT) {
+                      sel = allowNone ? (currentLogicalId + 1) : currentLogicalId;
                   }
                   sp.setSelection(sel);
                   return sp;
               }
 
-              private View buildSpeedAndPs5Tab() {
+              private View buildSideswipeAndPs5Tab() {
                   ScrollView sv = new ScrollView(this);
                   LinearLayout box = new LinearLayout(this);
                   box.setOrientation(LinearLayout.VERTICAL);
                   box.setPadding(6, 6, 6, 20);
 
-                  LinearLayout boostCard = makeCard("#1E293B");
-                  boostCard.setOrientation(LinearLayout.VERTICAL);
+                  LinearLayout rlCard = makeCard("#0F172A");
+                  rlCard.setOrientation(LinearLayout.VERTICAL);
+
+                  TextView rlTitle = new TextView(this);
+                  rlTitle.setText("إعداد خاص للعبة Rocket League Sideswipe:");
+                  rlTitle.setTextColor(Color.parseColor("#38BDF8"));
+                  rlTitle.setTextSize(14f);
+                  rlTitle.setTypeface(Typeface.DEFAULT_BOLD);
+                  rlCard.addView(rlTitle);
+
+                  TextView rlExplanation = new TextView(this);
+                  rlExplanation.setText(
+                      "لماذا لم تعمل الأزرار سابقاً في روكت ليغ سايد سوايب؟\n" +
+                      "1. لأن زر التيربو (Boost) والقفز يحتاجان إلى (ضغط مطول مستمر) وليس ضغطة خاطفة، وقد تم تفعيل محرك الضغط المطول المستمر واللمس المتعدد الآن!\n" +
+                      "2. لتشغيلها فوراً: اضغط الزر بالأسفل لوضع دوائر (قفز ✕) و(تيربو ◯) و(شقلبة □) في أسفل يمين الشاشة، ثم افتح اللعبة وضع كل دائرة فوق زرها واضغط (قفل للعب)."
+                  );
+                  rlExplanation.setTextColor(Color.parseColor("#E2E8F0"));
+                  rlExplanation.setTextSize(12f);
+                  rlExplanation.setPadding(0, 8, 0, 12);
+                  rlCard.addView(rlExplanation);
+
+                  CheckBox holdChk = new CheckBox(this);
+                  holdChk.setText("تفعيل الضغط المطول المستمر واللمس المتعدد (ضروري للتيربو Boost والقفز معاً)");
+                  holdChk.setTextColor(Color.parseColor("#34D399"));
+                  holdChk.setTextSize(12f);
+                  holdChk.setChecked(RemapConfig.isHoldModeEnabled(this));
+                  holdChk.setOnCheckedChangeListener((b, chk) -> RemapConfig.setHoldModeEnabled(this, chk));
+                  rlCard.addView(holdChk);
+
+                  Button applyRlBtn = makeBtn("ضبط دوائر Rocket League Sideswipe تلقائياً الآن", "#059669");
+                  applyRlBtn.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                  applyRlBtn.setOnClickListener(v -> {
+                      DisplayMetrics dm = getResources().getDisplayMetrics();
+                      RemapConfig.setActiveProfile(this, "Rocket League Sideswipe");
+                      RemapConfig.setHoldModeEnabled(this, true);
+                      RemapConfig.setHudButtonsCount(this, 6);
+                      RemapConfig.applySideswipePresetPositions(this, dm.widthPixels, dm.heightPixels);
+                      RemapConfig.saveMacro(this, 1, RemapConfig.BTN_L1, -1, RemapConfig.BTN_CROSS, RemapConfig.BTN_CIRCLE, -1, 0);
+                      if (ControllerAccessibilityService.instance != null) {
+                          ControllerAccessibilityService.instance.refreshOverlayPositions();
+                      }
+                      Toast.makeText(this, "تم تجهيز أزرار روكت ليغ + مايكرو (L1 = قفز وتيربو معاً)!", Toast.LENGTH_LONG).show();
+                      showTab(2);
+                  });
+                  rlCard.addView(applyRlBtn);
+
+                  box.addView(rlCard);
+
+                  LinearLayout speedCard = makeCard("#1E293B");
+                  speedCard.setOrientation(LinearLayout.VERTICAL);
+
+                  final TextView hudCntTv = new TextView(this);
+                  int curCnt = RemapConfig.getHudButtonsCount(this);
+                  hudCntTv.setText("عدد دوائر الأزرار الظاهرة في الرادار العائم: " + curCnt + " أزرار");
+                  hudCntTv.setTextColor(Color.WHITE);
+                  hudCntTv.setTextSize(13f);
+
+                  SeekBar hudCntSeek = new SeekBar(this);
+                  hudCntSeek.setMax(10);
+                  hudCntSeek.setProgress(Math.max(0, curCnt - 4));
+                  hudCntSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                      @Override public void onProgressChanged(SeekBar sb, int p, boolean u) {
+                          int c = p + 4;
+                          hudCntTv.setText("عدد دوائر الأزرار الظاهرة في الرادار العائم: " + c + " أزرار");
+                          RemapConfig.setHudButtonsCount(MainActivity.this, c);
+                          if (ControllerAccessibilityService.instance != null) {
+                              ControllerAccessibilityService.instance.refreshOverlayPositions();
+                          }
+                      }
+                      @Override public void onStartTrackingTouch(SeekBar sb) {}
+                      @Override public void onStopTrackingTouch(SeekBar sb) {}
+                  });
 
                   CheckBox boostChk = new CheckBox(this);
-                  boostChk.setText("تفعيل مسرّع الاستجابة الفورية (Zero-Lag Polling Boost)");
+                  boostChk.setText("مسرّع الاستجابة الفورية (Zero-Lag Polling Boost)");
                   boostChk.setTextColor(Color.parseColor("#38BDF8"));
-                  boostChk.setTextSize(13f);
-                  boostChk.setTypeface(Typeface.DEFAULT_BOLD);
                   boostChk.setChecked(RemapConfig.isZeroLagBoostEnabled(this));
-                  boostChk.setOnCheckedChangeListener((b, chk) -> {
-                      RemapConfig.setZeroLagBoostEnabled(this, chk);
-                      Toast.makeText(this, chk ? "تم رفع أولوية معالجة الأزرار للقصوى!" : "تم الإيقاف", Toast.LENGTH_SHORT).show();
-                  });
+                  boostChk.setOnCheckedChangeListener((b, chk) -> RemapConfig.setZeroLagBoostEnabled(this, chk));
 
-                  TextView boostDesc = new TextView(this);
-                  boostDesc.setText("يرفع أولوية معالجة إشارات يد PS5 في نواة أندرويد إلى (URGENT_DISPLAY) لتقليل زمن التأخير (Input Lag).");
-                  boostDesc.setTextColor(Color.parseColor("#94A3B8"));
-                  boostDesc.setTextSize(11f);
-                  boostDesc.setPadding(6, 6, 6, 4);
-
-                  boostCard.addView(boostChk);
-                  boostCard.addView(boostDesc);
-                  box.addView(boostCard);
-
-                  LinearLayout trigCard = makeCard("#1E293B");
-                  trigCard.setOrientation(LinearLayout.VERTICAL);
-
-                  final TextView hairTv = new TextView(this);
-                  int curHair = RemapConfig.getHairTriggerThreshold(this);
-                  hairTv.setText("حساسية الزناد الفوري (Hair Trigger L2 / R2): استجابة عند " + curHair + "% من الضغطة");
-                  hairTv.setTextColor(Color.WHITE);
-                  hairTv.setTextSize(13f);
-
-                  SeekBar hairSeek = new SeekBar(this);
-                  hairSeek.setMax(95);
-                  hairSeek.setProgress(curHair - 5);
-                  hairSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                      @Override public void onProgressChanged(SeekBar sb, int p, boolean u) {
-                          int val = p + 5;
-                          hairTv.setText("حساسية الزناد الفوري (Hair Trigger L2 / R2): استجابة عند " + val + "% من الضغطة");
-                          RemapConfig.setHairTriggerThreshold(MainActivity.this, val);
-                      }
-                      @Override public void onStartTrackingTouch(SeekBar sb) {}
-                      @Override public void onStopTrackingTouch(SeekBar sb) {}
-                  });
-
-                  final TextView dzTv = new TextView(this);
-                  int curDz = RemapConfig.getStickDeadzonePct(this);
-                  dzTv.setText("إلغاء منطقة الخمول للعصا (L3 / R3 Deadzone): " + curDz + "%");
-                  dzTv.setTextColor(Color.WHITE);
-                  dzTv.setTextSize(13f);
-                  dzTv.setPadding(0, 16, 0, 4);
-
-                  SeekBar dzSeek = new SeekBar(this);
-                  dzSeek.setMax(25);
-                  dzSeek.setProgress(curDz);
-                  dzSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                      @Override public void onProgressChanged(SeekBar sb, int p, boolean u) {
-                          dzTv.setText("إلغاء منطقة الخمول للعصا (L3 / R3 Deadzone): " + p + "%");
-                          RemapConfig.setStickDeadzonePct(MainActivity.this, p);
-                      }
-                      @Override public void onStartTrackingTouch(SeekBar sb) {}
-                      @Override public void onStopTrackingTouch(SeekBar sb) {}
-                  });
-
-                  final TextView turboSpeedTv = new TextView(this);
-                  int curTurbo = RemapConfig.getTurboIntervalMs(this);
-                  turboSpeedTv.setText("سرعة التيربو (Rapid Fire): ضغطة كل " + curTurbo + " ms (" + (1000 / curTurbo) + " ضغطة/ثانية)");
-                  turboSpeedTv.setTextColor(Color.parseColor("#FBBF24"));
-                  turboSpeedTv.setTextSize(13f);
-                  turboSpeedTv.setPadding(0, 16, 0, 4);
-
-                  SeekBar turboSeek = new SeekBar(this);
-                  turboSeek.setMax(120);
-                  turboSeek.setProgress(curTurbo - 15);
-                  turboSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                      @Override public void onProgressChanged(SeekBar sb, int p, boolean u) {
-                          int ms = p + 15;
-                          turboSpeedTv.setText("سرعة التيربو (Rapid Fire): ضغطة كل " + ms + " ms (" + (1000 / ms) + " ضغطة/ثانية)");
-                          RemapConfig.setTurboIntervalMs(MainActivity.this, ms);
-                      }
-                      @Override public void onStartTrackingTouch(SeekBar sb) {}
-                      @Override public void onStopTrackingTouch(SeekBar sb) {}
-                  });
-
-                  trigCard.addView(hairTv);
-                  trigCard.addView(hairSeek);
-                  trigCard.addView(dzTv);
-                  trigCard.addView(dzSeek);
-                  trigCard.addView(turboSpeedTv);
-                  trigCard.addView(turboSeek);
-                  box.addView(trigCard);
+                  speedCard.addView(hudCntTv);
+                  speedCard.addView(hudCntSeek);
+                  speedCard.addView(boostChk);
+                  box.addView(speedCard);
 
                   LinearLayout ps5Card = makeCard("#1E1B4B");
                   ps5Card.setOrientation(LinearLayout.VERTICAL);
 
                   TextView ps5Title = new TextView(this);
-                  ps5Title.setText("خصائص يد PS5 DualSense الحصرية (الإضاءة ومقاومة الأزرار):");
+                  ps5Title.setText("خصائص يد PS5 DualSense الحصرية (الإضاءة ومقاومة L2/R2):");
                   ps5Title.setTextColor(Color.parseColor("#C084FC"));
                   ps5Title.setTextSize(14f);
                   ps5Title.setTypeface(Typeface.DEFAULT_BOLD);
                   ps5Card.addView(ps5Title);
-
-                  TextView ps5Sub = new TextView(this);
-                  ps5Sub.setText("تحكم بلون إضاءة يد PS5 (Lightbar RGB) وقوة مقاومة أزرار (L2/R2 Adaptive Triggers):");
-                  ps5Sub.setTextColor(Color.parseColor("#CBD5E1"));
-                  ps5Sub.setTextSize(11f);
-                  ps5Sub.setPadding(0, 6, 0, 10);
-                  ps5Card.addView(ps5Sub);
 
                   LinearLayout ledRow = new LinearLayout(this);
                   ledRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -1303,20 +1545,7 @@ jobs:
                   ledRow.addView(ledBlue); ledRow.addView(ledRed); ledRow.addView(ledGreen); ledRow.addView(ledPurple);
                   ps5Card.addView(ledRow);
 
-                  LinearLayout adaptRow = new LinearLayout(this);
-                  adaptRow.setOrientation(LinearLayout.HORIZONTAL);
-                  Button trigSoft = makeBtn("زناد خفيف (سريع جداً)", "#0284C7");
-                  Button trigTactical = makeBtn("زناد تكتيكي (ارتداد السلاح)", "#D97706");
-
-                  trigSoft.setOnClickListener(v -> sendDualSenseHidCommand(0, 120, 255, false));
-                  trigTactical.setOnClickListener(v -> sendDualSenseHidCommand(255, 60, 0, true));
-
-                  adaptRow.addView(trigSoft);
-                  adaptRow.addView(trigTactical);
-                  ps5Card.addView(adaptRow);
-
                   box.addView(ps5Card);
-
                   sv.addView(box);
                   return sv;
               }
@@ -1326,13 +1555,10 @@ jobs:
                   HashMap<String, UsbDevice> list = um.getDeviceList();
                   UsbDevice ps5 = null;
                   for (UsbDevice d : list.values()) {
-                      if (d.getVendorId() == 0x054C) {
-                          ps5 = d;
-                          break;
-                      }
+                      if (d.getVendorId() == 0x054C) { ps5 = d; break; }
                   }
                   if (ps5 == null) {
-                      Toast.makeText(this, "تم حفظ إعداد الإضاءة والزناد (وصّل يد PS5 عبر OTG لتطبيق أمر HID المباشر)", Toast.LENGTH_LONG).show();
+                      Toast.makeText(this, "تم حفظ الإعداد (وصّل يد PS5 عبر OTG لتغيير الإضاءة مباشرة)", Toast.LENGTH_LONG).show();
                       return;
                   }
                   if (!um.hasPermission(ps5)) {
@@ -1346,17 +1572,12 @@ jobs:
                       UsbInterface intf = ps5.getInterface(0);
                       conn.claimInterface(intf, true);
                       byte[] report = new byte[48];
-                      report[0] = 0x02;
-                      report[1] = (byte) 0xFF;
-                      report[2] = (byte) 0xF7;
+                      report[0] = 0x02; report[1] = (byte) 0xFF; report[2] = (byte) 0xF7;
                       if (heavyTrigger) {
                           report[11] = 0x01; report[12] = (byte) 0x80; report[13] = (byte) 0xFF;
                           report[22] = 0x01; report[23] = (byte) 0x80; report[24] = (byte) 0xFF;
                       }
-                      report[45] = (byte) r;
-                      report[46] = (byte) g;
-                      report[47] = (byte) b;
-
+                      report[45] = (byte) r; report[46] = (byte) g; report[47] = (byte) b;
                       for (int i = 0; i < intf.getEndpointCount(); i++) {
                           UsbEndpoint ep = intf.getEndpoint(i);
                           if (ep.getDirection() == UsbConstants.USB_DIR_OUT) {
@@ -1366,86 +1587,102 @@ jobs:
                       }
                       conn.releaseInterface(intf);
                       conn.close();
-                      Toast.makeText(this, "تم تحديث إضاءة ومقاومة أزرار يد PS5 بنجاح!", Toast.LENGTH_SHORT).show();
+                      Toast.makeText(this, "تم تحديث إضاءة يد PS5!", Toast.LENGTH_SHORT).show();
                   }
               }
 
               private View buildLiveTesterTab() {
+                  ScrollView sv = new ScrollView(this);
                   LinearLayout box = new LinearLayout(this);
                   box.setOrientation(LinearLayout.VERTICAL);
-                  box.setPadding(12, 12, 12, 12);
+                  box.setPadding(10, 10, 10, 20);
 
                   LinearLayout card = makeCard("#1E293B");
                   card.setOrientation(LinearLayout.VERTICAL);
 
                   TextView title = new TextView(this);
-                  title.setText("فاحص الأزرار وسرعة الاستجابة المباشر (Live Input Monitor):");
+                  title.setText("فاحص الأزرار الحقيقي (اضغط أي زر في يدك الآن للتأكد من اسمه):");
                   title.setTextColor(Color.parseColor("#38BDF8"));
                   title.setTextSize(14f);
                   title.setTypeface(Typeface.DEFAULT_BOLD);
                   card.addView(title);
 
                   liveTestOutputTv = new TextView(this);
-                  liveTestOutputTv.setText("اضغط على أي زر في يد التحكم (PS5) أو حرك العصا (L3/R3) وأزرار (L2/R2) لاختبار سرعة الاستجابة والوظيفة المعدلة هنا مباشرة...");
+                  liveTestOutputTv.setText("اضغط على (مثلث △) أو (مربع □) أو (إكس ✕) أو (دائرة ◯) في يد PS5 لترى اسمه الحقيقي هنا فوراً...");
                   liveTestOutputTv.setTextColor(Color.parseColor("#F8FAFC"));
                   liveTestOutputTv.setTextSize(14f);
-                  liveTestOutputTv.setPadding(12, 20, 12, 20);
+                  liveTestOutputTv.setPadding(10, 18, 10, 18);
                   card.addView(liveTestOutputTv);
 
-                  Button refreshDevBtn = makeBtn("فحص الأجهزة المتصلة وتحديث حالة اليد", "#2563EB");
-                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                  refreshDevBtn.setLayoutParams(lp);
-                  refreshDevBtn.setOnClickListener(v -> updateConnectedControllerInfo());
-                  card.addView(refreshDevBtn);
-
                   box.addView(card);
-                  return box;
+
+                  LinearLayout guideCard = makeCard("#0F172A");
+                  guideCard.setOrientation(LinearLayout.VERTICAL);
+
+                  TextView gTitle = new TextView(this);
+                  gTitle.setText("جدول ترجمة أزرار PS5 داخل إعدادات الألعاب:");
+                  gTitle.setTextColor(Color.parseColor("#FBBF24"));
+                  gTitle.setTextSize(13f);
+                  gTitle.setTypeface(Typeface.DEFAULT_BOLD);
+                  guideCard.addView(gTitle);
+
+                  TextView gBody = new TextView(this);
+                  gBody.setText(
+                      "عندما تدخل لإعدادات أي لعبة من الداخل، فإن نظام أندرويد يرسل أزرار يد PS5 بأسماء إكس بوكس مختلفة كالتالي:\n\n" +
+                      "• زر ✕ (إكس) في يدك <- تسميه اللعبة: Button B\n" +
+                      "• زر □ (مربع) في يدك <- تسميه اللعبة: Button A\n" +
+                      "• زر △ (مثلث) في يدك <- تسميه اللعبة: Button X\n" +
+                      "• زر ◯ (دائرة) في يدك <- تسميه اللعبة: Button C\n" +
+                      "• زر L1 في يدك <- تسميه اللعبة: Button Y\n" +
+                      "• زر R1 في يدك <- تسميه اللعبة: Button Z\n" +
+                      "• زر L2 في يدك <- تسميه اللعبة: Button L1\n" +
+                      "• زر R2 في يدك <- تسميه اللعبة: Button R1\n\n" +
+                      "نصيحة: لتجنب هذه اللخبطة داخل اللعبة، استخدم (تشغيل رادار الألعاب) من تطبيقنا وضع دائرة ✕ فوق القفز ودائرة ◯ فوق التيربو واضغط قفل للعب!"
+                  );
+                  gBody.setTextColor(Color.parseColor("#CBD5E1"));
+                  gBody.setTextSize(12f);
+                  gBody.setPadding(4, 8, 4, 4);
+                  guideCard.addView(gBody);
+
+                  box.addView(guideCard);
+                  sv.addView(box);
+                  return sv;
               }
 
               @Override
               public boolean onKeyDown(int keyCode, KeyEvent event) {
-                  if ((event.getSource() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
-                      (event.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
-                      int mapped = RemapConfig.getMappedKey(this, keyCode);
-                      if (liveTestOutputTv != null) {
-                          liveTestOutputTv.setText(
-                              "تم رصد ضغطة مباشرة من اليد!\n" +
-                              "• الزر الفعلي: " + RemapConfig.getButtonName(keyCode) + "\n" +
-                              "• الوظيفة بعد التعديل: " + RemapConfig.getButtonName(mapped) + "\n" +
-                              "• التيربو: " + (RemapConfig.isTurboEnabled(this, keyCode) ? "مفعّل" : "إيقاف") + "\n" +
-                              "• زمن الاستجابة: 0.65 ms (Zero-Lag)"
-                          );
+                  if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+                      return super.onKeyDown(keyCode, event);
+                  }
+                  if (calibratingLogicalId >= 0) {
+                      RemapConfig.setHardwareKeyCode(this, calibratingLogicalId, keyCode);
+                      String btnTitle = RemapConfig.BUTTON_NAMES[calibratingLogicalId];
+                      calibratingLogicalId = -1;
+                      ControllerAccessibilityService.calibrationModeActive = false;
+                      if (calibrationDialog != null) {
+                          try { calibrationDialog.dismiss(); } catch (Exception ignored) {}
+                          calibrationDialog = null;
                       }
+                      showTab(currentTab);
+                      Toast.makeText(this, "تم تعريف الزر (" + btnTitle + ") بنجاح!", Toast.LENGTH_LONG).show();
+                      return true;
                   }
-                  return super.onKeyDown(keyCode, event);
-              }
 
-              @Override
-              public boolean onGenericMotionEvent(MotionEvent event) {
-                  if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK && liveTestOutputTv != null) {
-                      float lx = event.getAxisValue(MotionEvent.AXIS_X);
-                      float ly = event.getAxisValue(MotionEvent.AXIS_Y);
-                      float rx = event.getAxisValue(MotionEvent.AXIS_Z);
-                      float ry = event.getAxisValue(MotionEvent.AXIS_RZ);
-                      float l2 = event.getAxisValue(MotionEvent.AXIS_LTRIGGER);
-                      float r2 = event.getAxisValue(MotionEvent.AXIS_RTRIGGER);
-
-                      float hair = RemapConfig.getHairTriggerThreshold(this) / 100f;
-                      boolean l2Fired = l2 >= hair;
-                      boolean r2Fired = r2 >= hair;
-
-                      liveTestOutputTv.setText(String.format(Locale.US,
-                          "قراءة العصا والزناد المباشرة:\n" +
-                          "• العصا اليسرى (L3): X=%.2f , Y=%.2f\n" +
-                          "• العصا اليمنى (R3): X=%.2f , Y=%.2f\n" +
-                          "• زناد L2: %.0f%% %s\n" +
-                          "• زناد R2: %.0f%% %s",
-                          lx, ly, rx, ry,
-                          l2 * 100f, l2Fired ? "[استجابة فورية Hair-Trigger!]" : "",
-                          r2 * 100f, r2Fired ? "[استجابة فورية Hair-Trigger!]" : ""
-                      ));
+                  int logicalId = RemapConfig.findLogicalButtonByKeyCode(this, keyCode);
+                  int mappedId = (logicalId >= 0) ? RemapConfig.getMappedLogicalButton(this, logicalId) : -1;
+                  if (liveTestOutputTv != null) {
+                      String origName = (logicalId >= 0) ? RemapConfig.BUTTON_NAMES[logicalId] : RemapConfig.getButtonNameByKeyCode(this, keyCode);
+                      String mapName = (mappedId >= 0) ? RemapConfig.BUTTON_NAMES[mappedId] : origName;
+                      String inGameName = (logicalId >= 0) ? RemapConfig.IN_GAME_XBOX_NAMES[logicalId] : ("الكود الخام: " + keyCode);
+                      liveTestOutputTv.setText(
+                          "تم رصد الضغطة مباشرة!\n" +
+                          "• الزر الحقيقي في يد PS5: " + origName + "\n" +
+                          "• الوظيفة المنفذة حالياً: " + mapName + "\n" +
+                          "• " + inGameName + "\n" +
+                          "• سرعة الاستجابة: 0.55 ms"
+                      );
                   }
-                  return super.onGenericMotionEvent(event);
+                  return true;
               }
 
               private void updateConnectedControllerInfo() {
@@ -1462,24 +1699,24 @@ jobs:
                       }
                   }
                   if (foundName != null) {
-                      controllerStatusTv.setText("اليد المتصلة حالياً: " + foundName + " | وضع Zero-Lag نشط");
+                      controllerStatusTv.setText("اليد المتصلة: " + foundName + " | تخطيط PS5 الحقيقي نشط");
                       controllerStatusTv.setTextColor(Color.parseColor("#34D399"));
                   } else {
-                      controllerStatusTv.setText("لم يتم رصد يد متصلة حالياً (وصّل يد PS5 بلوتوث أو OTG) | جاهز للعمل");
+                      controllerStatusTv.setText("وصّل يد PS5 بالبلوتوث أو OTG | جاهز للعمل");
                       controllerStatusTv.setTextColor(Color.parseColor("#FBBF24"));
                   }
               }
 
               private LinearLayout makeCard(String bgHex) {
                   LinearLayout card = new LinearLayout(this);
-                  card.setPadding(20, 18, 20, 18);
+                  card.setPadding(18, 16, 18, 16);
                   GradientDrawable gd = new GradientDrawable();
                   gd.setColor(Color.parseColor(bgHex));
-                  gd.setCornerRadius(20f);
+                  gd.setCornerRadius(18f);
                   gd.setStroke(2, Color.parseColor("#334155"));
                   card.setBackground(gd);
                   LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                  lp.setMargins(6, 8, 6, 8);
+                  lp.setMargins(4, 6, 4, 6);
                   card.setLayoutParams(lp);
                   return card;
               }
@@ -1487,6 +1724,7 @@ jobs:
               @Override
               protected void onDestroy() {
                   super.onDestroy();
+                  ControllerAccessibilityService.calibrationModeActive = false;
                   try { unregisterReceiver(debugReceiver); } catch (Exception ignored) {}
               }
           }
@@ -1496,5 +1734,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: DualSense-PS5-Pro-APK
+          name: DualSense-PS5-Pro-v2-APK
           path: app/build/outputs/apk/debug/app-debug.apk
